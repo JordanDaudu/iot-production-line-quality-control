@@ -17,4 +17,5 @@ export interface Alert {
   acknowledgedBy?: string | null;
   acknowledgedAt?: string | null;
   resolvedAt?: string | null;
+  note?: string | null;
 }

@@ -68,6 +68,18 @@ public class AlertService {
         return persistAndPublish(alert);
     }
 
+    /** Raised when vibration stays abnormally high over several readings (FR-04, FR-16). */
+    public Alert createSustainedVibrationAlert(SensorReading reading) {
+        Alert alert = baseAlert(AlertType.MAINTENANCE, AlertSeverity.WARNING);
+        alert.setMessage(String.format(Locale.US,
+                "Sustained abnormal vibration at %s (recent readings consistently above the warning level)",
+                reading.getMachineId()));
+        alert.setSource(reading.getMachineId());
+        alert.setSensorKey(reading.getSensorKey());
+        alert.setSimulationRunId(reading.getSimulationRunId());
+        return persistAndPublish(alert);
+    }
+
     /** Raised when a sensor stops sending data (FR-17). */
     public Alert createSensorHealthAlert(Sensor sensor) {
         Alert alert = baseAlert(AlertType.SENSOR_HEALTH, AlertSeverity.WARNING);
@@ -86,11 +98,14 @@ public class AlertService {
         return alerts.stream().map(AlertDto::from).toList();
     }
 
-    public AlertDto acknowledge(Long alertId, String actor) {
+    public AlertDto acknowledge(Long alertId, String actor, String note) {
         Alert alert = requireAlert(alertId);
         alert.setStatus(AlertStatus.ACKNOWLEDGED);
         alert.setAcknowledgedBy(actor);
         alert.setAcknowledgedAt(Instant.now());
+        if (note != null && !note.isBlank()) {
+            alert.setNote(note);
+        }
         return publishUpdate(alert);
     }
 

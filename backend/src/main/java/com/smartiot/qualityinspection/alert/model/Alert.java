@@ -64,6 +64,10 @@ public class Alert {
 
     private Instant resolvedAt;
 
+    /** Optional free-text note recorded when acknowledging (FR-24). */
+    @Column(length = 500)
+    private String note;
+
     public Alert() {
         // Public no-arg constructor: required by JPA and used by AlertService.
     }
@@ -166,5 +170,13 @@ public class Alert {
 
     public void setResolvedAt(Instant resolvedAt) {
         this.resolvedAt = resolvedAt;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
     }
 }

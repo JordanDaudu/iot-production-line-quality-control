@@ -12,6 +12,8 @@ public final class WebSocketTopics {
     public static final String SENSOR_HEALTH = "/topic/sensor-health";
     public static final String SIMULATION_STATE = "/topic/simulation-state";
     public static final String DASHBOARD_SUMMARY = "/topic/dashboard-summary";
+    /** Per-reading acknowledgement returned to sensor clients that submit over WebSocket. */
+    public static final String INGEST_ACK = "/topic/ingest-ack";
 
     private WebSocketTopics() {
     }

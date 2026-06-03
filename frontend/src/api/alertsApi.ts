@@ -7,8 +7,8 @@ export async function getAlerts(status?: AlertStatus): Promise<Alert[]> {
   return res.data;
 }
 
-export async function acknowledgeAlert(id: number): Promise<Alert> {
-  const res = await httpClient.post<Alert>(`/alerts/${id}/acknowledge`);
+export async function acknowledgeAlert(id: number, note?: string): Promise<Alert> {
+  const res = await httpClient.post<Alert>(`/alerts/${id}/acknowledge`, note ? { note } : {});
   return res.data;
 }
 

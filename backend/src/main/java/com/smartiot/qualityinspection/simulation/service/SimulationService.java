@@ -142,6 +142,11 @@ public class SimulationService {
         return currentBatchId;
     }
 
+    /** The active scenario name (e.g. NORMAL_RUN), or null when idle. */
+    public String getScenario() {
+        return scenario;
+    }
+
     /** Returns the next unique product code for the active run, e.g. BATCH001-P0001. */
     public String nextProductCode() {
         return currentBatchCode + "-P" + String.format("%04d", productSequence.incrementAndGet());

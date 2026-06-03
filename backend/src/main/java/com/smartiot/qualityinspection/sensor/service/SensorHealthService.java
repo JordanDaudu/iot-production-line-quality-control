@@ -1,5 +1,6 @@
 package com.smartiot.qualityinspection.sensor.service;
 
+import com.smartiot.qualityinspection.common.enums.SensorType;
 import com.smartiot.qualityinspection.common.event.SensorReadingIngestedEvent;
 import com.smartiot.qualityinspection.common.event.SensorRecoveredEvent;
 import com.smartiot.qualityinspection.common.event.SensorWentOfflineEvent;
@@ -50,12 +51,21 @@ public class SensorHealthService {
     @EventListener
     public void onReadingIngested(SensorReadingIngestedEvent event) {
         SensorReading reading = event.reading();
-        Sensor sensor = sensorRepository.findBySensorKey(reading.getSensorKey())
-                .orElseGet(() -> new Sensor(reading.getSensorKey(), reading.getSensorType(), true, null));
+        markOnline(reading.getSensorKey(), reading.getSensorType(), reading.getTimestamp());
+    }
+
+    /** Records a heartbeat from a sensor (FR-17), marking it online without a data reading. */
+    public void heartbeat(String sensorKey, SensorType sensorType, Instant timestamp) {
+        markOnline(sensorKey, sensorType, timestamp != null ? timestamp : Instant.now());
+    }
+
+    private void markOnline(String sensorKey, SensorType sensorType, Instant seenAt) {
+        Sensor sensor = sensorRepository.findBySensorKey(sensorKey)
+                .orElseGet(() -> new Sensor(sensorKey, sensorType, true, null));
         boolean wasOffline = sensor.getId() != null && !sensor.isOnline();
 
         sensor.setOnline(true);
-        sensor.setLastSeenAt(reading.getTimestamp());
+        sensor.setLastSeenAt(seenAt);
         Sensor saved = sensorRepository.save(sensor);
 
         if (wasOffline) {

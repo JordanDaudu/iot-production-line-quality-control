@@ -14,6 +14,15 @@ import type { SimulationStatus, SimulationState, FaultType } from '../types/simu
 
 const CONTROL_ROLES = ['OPERATOR', 'ADMINISTRATOR'];
 
+const SCENARIOS = [
+  'NORMAL_RUN',
+  'HIGH_DEFECT_RATE',
+  'TEMPERATURE_SPIKE',
+  'VIBRATION_FAULT',
+  'SENSOR_DISCONNECT',
+  'MIXED_FAULT_DEMO',
+];
+
 const FAULTS: { type: FaultType; label: string }[] = [
   { type: 'OVERWEIGHT_PRODUCT', label: 'Overweight product' },
   { type: 'VISUAL_DEFECT', label: 'Visual defect (crack)' },
@@ -31,6 +40,7 @@ export default function SimulationControlPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [faultMsg, setFaultMsg] = useState<string | null>(null);
+  const [scenario, setScenario] = useState('NORMAL_RUN');
 
   useEffect(() => {
     getSimulationState().then(setStatus).catch(() => setError('Could not load simulation state.'));
@@ -96,8 +106,19 @@ export default function SimulationControlPage() {
         </p>
       )}
 
+      <label className="inline-filter">
+        Scenario
+        <select
+          value={scenario}
+          disabled={!canControl || state === 'RUNNING' || state === 'PAUSED'}
+          onChange={(e) => setScenario(e.target.value)}
+        >
+          {SCENARIOS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </label>
+
       <div className="button-row">
-        <button disabled={!canControl || busy || state === 'RUNNING'} onClick={() => run(() => startSimulation())}>
+        <button disabled={!canControl || busy || state === 'RUNNING'} onClick={() => run(() => startSimulation(scenario))}>
           {state === 'PAUSED' ? 'Resume' : 'Start'}
         </button>
         <button disabled={!canControl || busy || state !== 'RUNNING'} onClick={() => run(pauseSimulation)}>

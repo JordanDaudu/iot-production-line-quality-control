@@ -22,7 +22,8 @@ public record AlertDto(
         String createdAt,
         String acknowledgedBy,
         String acknowledgedAt,
-        String resolvedAt
+        String resolvedAt,
+        String note
 ) {
 
     public static AlertDto from(Alert alert) {
@@ -39,7 +40,8 @@ public record AlertDto(
                 toIso(alert.getCreatedAt()),
                 alert.getAcknowledgedBy(),
                 toIso(alert.getAcknowledgedAt()),
-                toIso(alert.getResolvedAt())
+                toIso(alert.getResolvedAt()),
+                alert.getNote()
         );
     }
 

@@ -35,6 +35,41 @@ contract is fixed up front and the frontend types stay aligned.
 | POST | `/api/simulation/reset` | Reset live state | OPERATOR / ADMINISTRATOR |
 | POST | `/api/simulation/faults` | Inject a fault | ADMINISTRATOR |
 
+## Request schemas & examples (FR-26)
+
+**Threshold update** — `PUT /api/thresholds/{sensorType}` (admin). Validated: `min ≤ warnMin ≤ warnMax ≤ max`.
+```json
+// valid
+{ "minValue": 90, "warnMinValue": 95, "warnMaxValue": 105, "maxValue": 110, "unit": "g" }
+// invalid -> 400 "Thresholds must satisfy min <= warnMin <= warnMax <= max."
+{ "minValue": 200, "warnMinValue": 95, "warnMaxValue": 105, "maxValue": 110, "unit": "g" }
+```
+
+**Start simulation** — `POST /api/simulation/start` (operator/admin). Scenario is one of
+`NORMAL_RUN`, `HIGH_DEFECT_RATE`, `TEMPERATURE_SPIKE`, `VIBRATION_FAULT`, `SENSOR_DISCONNECT`,
+`MIXED_FAULT_DEMO` (FR-25):
+```json
+{ "scenario": "HIGH_DEFECT_RATE" }
+```
+
+**Fault injection** — `POST /api/simulation/faults` (admin):
+```json
+{ "faultType": "SENSOR_DISCONNECT", "sensorKey": "VIBRATION-1", "durationSeconds": 20 }
+```
+`faultType` ∈ `OVERWEIGHT_PRODUCT, VISUAL_DEFECT, TEMPERATURE_SPIKE, VIBRATION_SPIKE, SENSOR_DISCONNECT`.
+
+**Acknowledge alert** — `POST /api/alerts/{id}/acknowledge` (tech/admin), optional note (FR-24):
+```json
+{ "note": "Checked station, replaced filter." }
+```
+
+**Product filters** — `GET /api/products?status=&batchId=&simulationRunId=&from=&to=` (ISO-8601 dates).
+**Report filters** — `GET /api/reports/quality-summary?batchId=&simulationRunId=&from=&to=` →
+totals, rates, and a per-run breakdown.
+
+WebSocket message schemas (SensorReading, Heartbeat, Alert, InspectionResult, IngestAck,
+SimulationStatus) with valid/invalid examples are in `websocket-events.md`.
+
 ## Error format
 All errors return a consistent body and never leak stack traces:
 ```json

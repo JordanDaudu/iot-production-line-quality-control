@@ -1,5 +1,6 @@
 package com.smartiot.qualityinspection.alert.controller;
 
+import com.smartiot.qualityinspection.alert.dto.AcknowledgeAlertRequest;
 import com.smartiot.qualityinspection.alert.dto.AlertDto;
 import com.smartiot.qualityinspection.alert.service.AlertService;
 import com.smartiot.qualityinspection.common.enums.AlertStatus;
@@ -8,6 +9,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,8 +37,11 @@ public class AlertController {
 
     @PostMapping("/{id}/acknowledge")
     @PreAuthorize("hasAnyRole('MAINTENANCE_TECHNICIAN', 'ADMINISTRATOR')")
-    public AlertDto acknowledge(@PathVariable Long id, Authentication authentication) {
-        return alertService.acknowledge(id, authentication.getName());
+    public AlertDto acknowledge(@PathVariable Long id,
+                                @RequestBody(required = false) AcknowledgeAlertRequest request,
+                                Authentication authentication) {
+        String note = request != null ? request.note() : null;
+        return alertService.acknowledge(id, authentication.getName(), note);
     }
 
     @PostMapping("/{id}/resolve")

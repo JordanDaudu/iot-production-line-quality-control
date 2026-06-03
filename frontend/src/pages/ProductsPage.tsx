@@ -1,10 +1,26 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getProducts, getProduct } from '../api/productsApi';
+import { getProducts, getProduct, type ProductFilters } from '../api/productsApi';
 import type { InspectionResult, QualityStatus } from '../types/inspection';
 import type { ProductDetail } from '../types/product';
 
 const STATUS_OPTIONS: (QualityStatus | 'ALL')[] = ['ALL', 'PASS', 'WARNING', 'FAIL'];
+
+interface FilterForm {
+  status: QualityStatus | 'ALL';
+  batchId: string;
+  simulationRunId: string;
+  from: string;
+  to: string;
+}
+
+const EMPTY_FILTERS: FilterForm = { status: 'ALL', batchId: '', simulationRunId: '', from: '', to: '' };
+
+function toIso(localValue: string): string | undefined {
+  if (!localValue) return undefined;
+  const d = new Date(localValue);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+}
 
 /**
  * Product filtering (FR-14) and traceability drill-down (FR-13, FR-22). Pick a status to
@@ -13,16 +29,40 @@ const STATUS_OPTIONS: (QualityStatus | 'ALL')[] = ['ALL', 'PASS', 'WARNING', 'FA
  */
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [statusFilter, setStatusFilter] = useState<QualityStatus | 'ALL'>('ALL');
+  const [filters, setFilters] = useState<FilterForm>(EMPTY_FILTERS);
   const [products, setProducts] = useState<InspectionResult[]>([]);
   const [code, setCode] = useState(searchParams.get('code') ?? '');
   const [detail, setDetail] = useState<ProductDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  function loadProducts(active: FilterForm) {
+    const query: ProductFilters = {};
+    if (active.status !== 'ALL') query.status = active.status;
+    if (active.batchId.trim()) query.batchId = Number(active.batchId);
+    if (active.simulationRunId.trim()) query.simulationRunId = Number(active.simulationRunId);
+    if (toIso(active.from)) query.from = toIso(active.from);
+    if (toIso(active.to)) query.to = toIso(active.to);
+    getProducts(query).then(setProducts).catch(() => setProducts([]));
+  }
+
   useEffect(() => {
-    const filters = statusFilter === 'ALL' ? {} : { status: statusFilter };
-    getProducts(filters).then(setProducts).catch(() => setProducts([]));
-  }, [statusFilter]);
+    loadProducts(EMPTY_FILTERS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function setField<K extends keyof FilterForm>(key: K, value: FilterForm[K]) {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function applyFilters(e: FormEvent) {
+    e.preventDefault();
+    loadProducts(filters);
+  }
+
+  function resetFilters() {
+    setFilters(EMPTY_FILTERS);
+    loadProducts(EMPTY_FILTERS);
+  }
 
   useEffect(() => {
     const initial = searchParams.get('code');
@@ -65,14 +105,20 @@ export default function ProductsPage() {
             <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="BATCH001-P0001" />
           </label>
           <button type="submit">Search</button>
+        </form>
+        <form className="filter-row" onSubmit={applyFilters}>
           <label>
             Status
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as QualityStatus | 'ALL')}>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+            <select value={filters.status} onChange={(e) => setField('status', e.target.value as QualityStatus | 'ALL')}>
+              {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </label>
+          <label>Batch ID<input className="num-input" value={filters.batchId} onChange={(e) => setField('batchId', e.target.value)} /></label>
+          <label>Run ID<input className="num-input" value={filters.simulationRunId} onChange={(e) => setField('simulationRunId', e.target.value)} /></label>
+          <label>From<input type="datetime-local" value={filters.from} onChange={(e) => setField('from', e.target.value)} /></label>
+          <label>To<input type="datetime-local" value={filters.to} onChange={(e) => setField('to', e.target.value)} /></label>
+          <button type="submit">Apply</button>
+          <button type="button" className="secondary" onClick={resetFilters}>Reset</button>
         </form>
         {error && <div className="error-text">{error}</div>}
       </section>

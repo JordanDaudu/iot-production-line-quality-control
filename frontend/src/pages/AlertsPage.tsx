@@ -39,6 +39,14 @@ export default function AlertsPage() {
     }
   }
 
+  function onAcknowledge(id: number) {
+    const note = window.prompt('Optional note for this acknowledgement (leave blank for none):', '');
+    if (note === null) {
+      return; // cancelled
+    }
+    act(() => acknowledgeAlert(id, note.trim() || undefined));
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -69,12 +77,15 @@ export default function AlertsPage() {
                   <td><span className="tag">{a.type}</span></td>
                   <td className={`sev-text sev-${a.severity.toLowerCase()}`}>{a.severity}</td>
                   <td>{a.status}</td>
-                  <td className="explanation">{a.message}</td>
+                  <td className="explanation">
+                    {a.message}
+                    {a.note && <div className="muted">note: {a.note}</div>}
+                  </td>
                   <td className="actions-cell">
                     <button
                       className="mini"
                       disabled={!canManage || a.status !== 'ACTIVE'}
-                      onClick={() => act(() => acknowledgeAlert(a.id))}
+                      onClick={() => onAcknowledge(a.id)}
                     >
                       Ack
                     </button>

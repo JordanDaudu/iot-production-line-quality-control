@@ -12,10 +12,19 @@ const COLORS = { PASS: '#22c55e', WARNING: '#f59e0b', FAIL: '#ef4444' };
 export default function ReportsPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [batchId, setBatchId] = useState('');
+  const [runId, setRunId] = useState('');
   const [report, setReport] = useState<QualitySummaryReport | null>(null);
 
   function load() {
-    getQualitySummary({ from: toIso(from), to: toIso(to) }).then(setReport).catch(() => setReport(null));
+    getQualitySummary({
+      from: toIso(from),
+      to: toIso(to),
+      batchId: batchId.trim() ? Number(batchId) : undefined,
+      simulationRunId: runId.trim() ? Number(runId) : undefined,
+    })
+      .then(setReport)
+      .catch(() => setReport(null));
   }
 
   useEffect(() => load(), []);
@@ -43,8 +52,16 @@ export default function ReportsPage() {
         <form className="filter-row" onSubmit={onApply}>
           <label>From<input type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
           <label>To<input type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+          <label>Batch ID<input className="num-input" value={batchId} onChange={(e) => setBatchId(e.target.value)} /></label>
+          <label>Run ID<input className="num-input" value={runId} onChange={(e) => setRunId(e.target.value)} /></label>
           <button type="submit">Apply</button>
-          <button type="button" className="secondary" onClick={() => { setFrom(''); setTo(''); setTimeout(load, 0); }}>Reset</button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => { setFrom(''); setTo(''); setBatchId(''); setRunId(''); setTimeout(load, 0); }}
+          >
+            Reset
+          </button>
         </form>
       </section>
 
@@ -84,6 +101,30 @@ export default function ReportsPage() {
           )}
         </section>
       </div>
+
+      <section className="card">
+        <h3 className="card-title">By simulation run</h3>
+        {report && report.byRun.length > 0 ? (
+          <table className="data-table">
+            <thead>
+              <tr><th>Run</th><th>Total</th><th className="status-pass">PASS</th><th className="status-warning">WARNING</th><th className="status-fail">FAIL</th></tr>
+            </thead>
+            <tbody>
+              {report.byRun.map((r) => (
+                <tr key={r.simulationRunId}>
+                  <td>{r.simulationRunId}</td>
+                  <td>{r.total}</td>
+                  <td>{r.passCount}</td>
+                  <td>{r.warningCount}</td>
+                  <td>{r.failCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="muted">No runs in range.</p>
+        )}
+      </section>
     </div>
   );
 }

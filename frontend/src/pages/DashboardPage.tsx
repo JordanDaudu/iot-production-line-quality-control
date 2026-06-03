@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useStompContext } from '../context/StompContext';
 import { useSubscription } from '../hooks/useSubscription';
 import { getDashboardSummary } from '../api/dashboardApi';
@@ -23,6 +24,8 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [simulation, setSimulation] = useState<SimulationStatus | null>(null);
   const [readings, setReadings] = useState<SensorReading[]>([]);
+  const lastTempRef = useRef<number | null>(null);
+  const [trend, setTrend] = useState<{ t: string; temperature: number | null; vibration: number | null }[]>([]);
 
   useEffect(() => {
     getDashboardSummary().then(setSummary).catch(() => undefined);
@@ -34,6 +37,19 @@ export default function DashboardPage() {
   useSubscription(Topics.READINGS, (m) => {
     const reading = JSON.parse(m.body) as SensorReading;
     setReadings((prev) => [reading, ...prev].slice(0, MAX_ROWS));
+
+    // Build a machine trend series: temperature is captured, then a point is added when
+    // the vibration reading (last in the tick) arrives, so both lines stay aligned.
+    if (reading.sensorType === 'TEMPERATURE' && reading.value != null) {
+      lastTempRef.current = reading.value;
+    } else if (reading.sensorType === 'VIBRATION' && reading.value != null) {
+      const point = {
+        t: formatTime(reading.timestamp),
+        temperature: lastTempRef.current,
+        vibration: reading.value,
+      };
+      setTrend((prev) => [...prev, point].slice(-20));
+    }
   });
 
   const simState: SimulationState = simulation?.state ?? summary?.simulationState ?? 'IDLE';
@@ -57,6 +73,27 @@ export default function DashboardPage() {
         <StatCard label="Simulation" value={simState} />
         <StatCard label="Total inspected" value={summary?.totalInspected ?? 0} />
         <StatCard label="Sensors online" value={`${sensorsOnline}/${summary?.sensors.length ?? 0}`} />
+      </section>
+
+      <section className="card">
+        <h3 className="card-title">Machine trend (temperature &amp; vibration)</h3>
+        {trend.length === 0 ? (
+          <p className="muted">Machine readings will plot here once the simulation runs.</p>
+        ) : (
+          <div style={{ width: '100%', height: 220 }}>
+            <ResponsiveContainer>
+              <LineChart data={trend} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="t" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="temperature" stroke="#38bdf8" dot={false} name="Temp (C)" />
+                <Line type="monotone" dataKey="vibration" stroke="#f59e0b" dot={false} name="Vibration (mm/s)" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </section>
 
       <div className="dash-grid">
