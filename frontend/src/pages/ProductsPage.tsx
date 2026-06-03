@@ -3,18 +3,21 @@ import { useSearchParams } from 'react-router-dom';
 import { getProducts, getProduct, type ProductFilters } from '../api/productsApi';
 import type { InspectionResult, QualityStatus } from '../types/inspection';
 import type { ProductDetail } from '../types/product';
+import type { SensorType } from '../types/sensor';
 
 const STATUS_OPTIONS: (QualityStatus | 'ALL')[] = ['ALL', 'PASS', 'WARNING', 'FAIL'];
+const SENSOR_OPTIONS: (SensorType | 'ALL')[] = ['ALL', 'WEIGHT', 'CAMERA', 'BARCODE', 'TEMPERATURE', 'VIBRATION'];
 
 interface FilterForm {
   status: QualityStatus | 'ALL';
+  sensorType: SensorType | 'ALL';
   batchId: string;
   simulationRunId: string;
   from: string;
   to: string;
 }
 
-const EMPTY_FILTERS: FilterForm = { status: 'ALL', batchId: '', simulationRunId: '', from: '', to: '' };
+const EMPTY_FILTERS: FilterForm = { status: 'ALL', sensorType: 'ALL', batchId: '', simulationRunId: '', from: '', to: '' };
 
 function toIso(localValue: string): string | undefined {
   if (!localValue) return undefined;
@@ -38,6 +41,7 @@ export default function ProductsPage() {
   function loadProducts(active: FilterForm) {
     const query: ProductFilters = {};
     if (active.status !== 'ALL') query.status = active.status;
+    if (active.sensorType !== 'ALL') query.sensorType = active.sensorType;
     if (active.batchId.trim()) query.batchId = Number(active.batchId);
     if (active.simulationRunId.trim()) query.simulationRunId = Number(active.simulationRunId);
     if (toIso(active.from)) query.from = toIso(active.from);
@@ -111,6 +115,12 @@ export default function ProductsPage() {
             Status
             <select value={filters.status} onChange={(e) => setField('status', e.target.value as QualityStatus | 'ALL')}>
               {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
+          <label>
+            Sensor
+            <select value={filters.sensorType} onChange={(e) => setField('sensorType', e.target.value as SensorType | 'ALL')}>
+              {SENSOR_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </label>
           <label>Batch ID<input className="num-input" value={filters.batchId} onChange={(e) => setField('batchId', e.target.value)} /></label>

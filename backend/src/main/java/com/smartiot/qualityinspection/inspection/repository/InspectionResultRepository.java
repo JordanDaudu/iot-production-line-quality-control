@@ -1,6 +1,7 @@
 package com.smartiot.qualityinspection.inspection.repository;
 
 import com.smartiot.qualityinspection.common.enums.QualityStatus;
+import com.smartiot.qualityinspection.common.enums.SensorType;
 import com.smartiot.qualityinspection.inspection.model.InspectionResult;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -29,11 +30,15 @@ public interface InspectionResultRepository extends JpaRepository<InspectionResu
               AND (:simulationRunId IS NULL OR r.simulationRunId = :simulationRunId)
               AND (:from IS NULL OR r.createdAt >= :from)
               AND (:to IS NULL OR r.createdAt <= :to)
+              AND (:sensorType IS NULL OR EXISTS (
+                    SELECT 1 FROM SensorReading sr
+                    WHERE sr.productCode = r.productCode AND sr.sensorType = :sensorType))
             ORDER BY r.createdAt DESC
             """)
     List<InspectionResult> search(@Param("status") QualityStatus status,
                                   @Param("batchId") Long batchId,
                                   @Param("simulationRunId") Long simulationRunId,
                                   @Param("from") Instant from,
-                                  @Param("to") Instant to);
+                                  @Param("to") Instant to,
+                                  @Param("sensorType") SensorType sensorType);
 }

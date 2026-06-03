@@ -2,6 +2,7 @@ import { httpClient } from './httpClient';
 import type { InspectionResult } from '../types/inspection';
 import type { ProductDetail } from '../types/product';
 import type { QualityStatus } from '../types/inspection';
+import type { SensorType } from '../types/sensor';
 
 export interface ProductFilters {
   status?: QualityStatus;
@@ -9,6 +10,7 @@ export interface ProductFilters {
   simulationRunId?: number;
   from?: string;
   to?: string;
+  sensorType?: SensorType;
 }
 
 export async function getProducts(filters: ProductFilters = {}): Promise<InspectionResult[]> {
@@ -18,6 +20,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Inspect
   if (filters.simulationRunId != null) params.simulationRunId = String(filters.simulationRunId);
   if (filters.from) params.from = filters.from;
   if (filters.to) params.to = filters.to;
+  if (filters.sensorType) params.sensorType = filters.sensorType;
   const res = await httpClient.get<InspectionResult[]>('/products', { params });
   return res.data;
 }

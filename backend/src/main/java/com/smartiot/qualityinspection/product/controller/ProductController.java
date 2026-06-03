@@ -1,6 +1,7 @@
 package com.smartiot.qualityinspection.product.controller;
 
 import com.smartiot.qualityinspection.common.enums.QualityStatus;
+import com.smartiot.qualityinspection.common.enums.SensorType;
 import com.smartiot.qualityinspection.common.exception.ValidationException;
 import com.smartiot.qualityinspection.inspection.dto.InspectionResultDto;
 import com.smartiot.qualityinspection.product.dto.ProductDetailDto;
@@ -35,8 +36,10 @@ public class ProductController {
             @RequestParam(required = false) Long batchId,
             @RequestParam(required = false) Long simulationRunId,
             @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to) {
-        return productQueryService.search(status, batchId, simulationRunId, parseInstant(from), parseInstant(to));
+            @RequestParam(required = false) String to,
+            @RequestParam(required = false) SensorType sensorType) {
+        return productQueryService.search(status, batchId, simulationRunId,
+                parseInstant(from), parseInstant(to), sensorType);
     }
 
     @GetMapping("/{productCode}")

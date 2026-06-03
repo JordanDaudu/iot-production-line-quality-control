@@ -18,6 +18,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -39,11 +40,23 @@ public class SensorSimulationService {
     private static final String MACHINE_ID = "STATION-1";
     private static final String[] DEFECTS = {"SCRATCH", "CRACK", "MISSING_LABEL", "UNKNOWN"};
 
+    /** The fixed set of virtual sensors that emit heartbeats while running (FR-17). */
+    private record SensorDef(String key, SensorType type) {
+    }
+
+    private static final List<SensorDef> SENSORS = List.of(
+            new SensorDef("WEIGHT-1", SensorType.WEIGHT),
+            new SensorDef("CAMERA-1", SensorType.CAMERA),
+            new SensorDef("BARCODE-1", SensorType.BARCODE),
+            new SensorDef("TEMPERATURE-1", SensorType.TEMPERATURE),
+            new SensorDef("VIBRATION-1", SensorType.VIBRATION));
+
     private final SimulationService simulationService;
     private final IngestionService ingestionService;
     private final ProductRepository productRepository;
     private final ThresholdConfigurationRepository thresholdRepository;
     private final FaultInjectionService faultInjectionService;
+    private final SensorHealthService sensorHealthService;
     private final ApplicationEventPublisher eventPublisher;
     private final Random random = new Random();
 
@@ -52,13 +65,32 @@ public class SensorSimulationService {
                                    ProductRepository productRepository,
                                    ThresholdConfigurationRepository thresholdRepository,
                                    FaultInjectionService faultInjectionService,
+                                   SensorHealthService sensorHealthService,
                                    ApplicationEventPublisher eventPublisher) {
         this.simulationService = simulationService;
         this.ingestionService = ingestionService;
         this.productRepository = productRepository;
         this.thresholdRepository = thresholdRepository;
         this.faultInjectionService = faultInjectionService;
+        this.sensorHealthService = sensorHealthService;
         this.eventPublisher = eventPublisher;
+    }
+
+    /**
+     * Each enabled sensor sends a heartbeat on a fixed cadence (FR-17). Disconnected
+     * sensors are skipped so the health monitor can detect them as offline.
+     */
+    @Scheduled(fixedDelayString = "${sensor.heartbeat-interval-ms:5000}")
+    public void emitHeartbeats() {
+        if (!simulationService.isRunning()) {
+            return;
+        }
+        Instant now = Instant.now();
+        for (SensorDef sensor : SENSORS) {
+            if (!faultInjectionService.isDisconnected(sensor.key())) {
+                sensorHealthService.heartbeat(sensor.key(), sensor.type(), now);
+            }
+        }
     }
 
     @Scheduled(fixedDelayString = "${simulation.tick-interval-ms:3000}")

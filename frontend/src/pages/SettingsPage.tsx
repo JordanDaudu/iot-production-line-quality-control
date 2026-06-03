@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getThresholds, updateThreshold } from '../api/thresholdsApi';
+import { getUsers, updateUserRole, type UserAccount } from '../api/usersApi';
 import type { Threshold } from '../types/threshold';
 import type { SensorType } from '../types/sensor';
+import type { UserRole } from '../types/auth';
+
+const ROLES: UserRole[] = ['QUALITY_MANAGER', 'OPERATOR', 'MAINTENANCE_TECHNICIAN', 'ADMINISTRATOR'];
 
 /**
  * Threshold configuration (FR-18). Administrators can edit the quality limits per sensor;
@@ -14,12 +18,36 @@ export default function SettingsPage() {
   const [drafts, setDrafts] = useState<Threshold[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [users, setUsers] = useState<UserAccount[]>([]);
 
   function load() {
     getThresholds().then(setDrafts).catch(() => setDrafts([]));
   }
 
-  useEffect(() => load(), []);
+  function loadUsers() {
+    getUsers().then(setUsers).catch(() => setUsers([]));
+  }
+
+  useEffect(() => {
+    load();
+    if (isAdmin) {
+      loadUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
+
+  async function changeRole(user: UserAccount, role: UserRole) {
+    setError(null);
+    setMessage(null);
+    try {
+      await updateUserRole(user.id, role);
+      setMessage(`${user.username} is now ${role}.`);
+      loadUsers();
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } }).response?.status;
+      setError(status === 400 ? 'Cannot remove the last administrator.' : 'Role change failed.');
+    }
+  }
 
   function setField(type: SensorType, field: keyof Threshold, value: string) {
     setDrafts((prev) => prev.map((t) => (t.sensorType === type ? { ...t, [field]: value } : t)));
@@ -98,6 +126,30 @@ export default function SettingsPage() {
         </table>
         <p className="muted">Bands: &lt; Min = FAIL · Min–WarnMin = WARNING · WarnMin–WarnMax = PASS · WarnMax–Max = WARNING · &gt; Max = FAIL.</p>
       </section>
+
+      {isAdmin && (
+        <section className="card">
+          <h3 className="card-title">Users &amp; Roles</h3>
+          <table className="data-table">
+            <thead>
+              <tr><th>Username</th><th>Name</th><th>Role</th></tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.username}</td>
+                  <td>{u.displayName}</td>
+                  <td>
+                    <select value={u.role} onChange={(e) => changeRole(u, e.target.value as UserRole)}>
+                      {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
 }

@@ -34,6 +34,8 @@ contract is fixed up front and the frontend types stay aligned.
 | POST | `/api/simulation/stop` | Stop simulation | OPERATOR / ADMINISTRATOR |
 | POST | `/api/simulation/reset` | Reset live state | OPERATOR / ADMINISTRATOR |
 | POST | `/api/simulation/faults` | Inject a fault | ADMINISTRATOR |
+| GET | `/api/users` | List users + roles | ADMINISTRATOR |
+| PUT | `/api/users/{id}/role` | Change a user's role | ADMINISTRATOR |
 
 ## Request schemas & examples (FR-26)
 
@@ -63,7 +65,9 @@ contract is fixed up front and the frontend types stay aligned.
 { "note": "Checked station, replaced filter." }
 ```
 
-**Product filters** — `GET /api/products?status=&batchId=&simulationRunId=&from=&to=` (ISO-8601 dates).
+**Product filters** — `GET /api/products?status=&batchId=&simulationRunId=&from=&to=&sensorType=`
+(ISO-8601 dates; `sensorType` keeps products that have a reading of that sensor).
+**Change role** — `PUT /api/users/{id}/role` (admin): `{ "role": "OPERATOR" }` (the last admin cannot be demoted).
 **Report filters** — `GET /api/reports/quality-summary?batchId=&simulationRunId=&from=&to=` →
 totals, rates, and a per-run breakdown.
 

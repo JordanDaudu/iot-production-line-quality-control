@@ -3,6 +3,7 @@ package com.smartiot.qualityinspection.product.service;
 import com.smartiot.qualityinspection.alert.dto.AlertDto;
 import com.smartiot.qualityinspection.alert.repository.AlertRepository;
 import com.smartiot.qualityinspection.common.enums.QualityStatus;
+import com.smartiot.qualityinspection.common.enums.SensorType;
 import com.smartiot.qualityinspection.common.exception.ResourceNotFoundException;
 import com.smartiot.qualityinspection.inspection.dto.InspectionResultDto;
 import com.smartiot.qualityinspection.inspection.repository.InspectionResultRepository;
@@ -50,8 +51,8 @@ public class ProductQueryService {
 
     /** Filtered list of inspected products (FR-14). */
     public List<InspectionResultDto> search(QualityStatus status, Long batchId, Long simulationRunId,
-                                            Instant from, Instant to) {
-        return inspectionResultRepository.search(status, batchId, simulationRunId, from, to)
+                                            Instant from, Instant to, SensorType sensorType) {
+        return inspectionResultRepository.search(status, batchId, simulationRunId, from, to, sensorType)
                 .stream().map(InspectionResultDto::from).toList();
     }
 
