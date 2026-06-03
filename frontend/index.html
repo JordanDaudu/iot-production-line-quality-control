@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart IoT Quality Inspection</title>
+    <!-- sockjs-client (used by the STOMP client) references the Node-style `global`,
+         which does not exist in the browser. Define it before any module loads. -->
+    <script>
+      window.global = window;
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
