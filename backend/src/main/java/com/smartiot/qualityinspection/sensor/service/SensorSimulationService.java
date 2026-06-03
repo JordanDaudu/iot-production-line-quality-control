@@ -27,10 +27,10 @@ import java.util.Random;
  * and machine-level readings (temperature, vibration). Every reading is submitted through
  * {@link IngestionService} — the same validated inbound channel external clients use.
  *
- * <p>The active {@link SimulationScenario} tunes defect/fail rates and machine spikes, so
- * different scenarios produce visibly different behaviour (FR-25). Injected faults are
- * applied on top of the scenario; disconnected sensors simply stop emitting so the health
- * monitor detects them as offline.
+ * <p>Numeric values evolve as a smooth mean-reverting random walk, so consecutive readings
+ * stay close to each other and drift gradually (realistic machine behaviour) rather than
+ * jumping across the band. Injected faults and fault scenarios still cause spikes, which
+ * then recover smoothly.
  */
 @Service
 public class SensorSimulationService {
@@ -59,6 +59,11 @@ public class SensorSimulationService {
     private final SensorHealthService sensorHealthService;
     private final ApplicationEventPublisher eventPublisher;
     private final Random random = new Random();
+
+    // Smoothly-evolving current values for each numeric sensor (mid-band starting points).
+    private double currentWeight = 100.0;
+    private double currentTemperature = 24.0;
+    private double currentVibration = 2.0;
 
     public SensorSimulationService(SimulationService simulationService,
                                    IngestionService ingestionService,
@@ -120,7 +125,6 @@ public class SensorSimulationService {
         Instant now = Instant.now();
         String productCode = simulationService.nextProductCode();
         if (productRepository.existsByProductCode(productCode)) {
-            // Defensive: never reuse a product id within a run (FR-06).
             log.warn("Duplicate product code {} skipped", productCode);
             return;
         }
@@ -155,10 +159,15 @@ public class SensorSimulationService {
 
     private SensorReadingMessage weightReading(String productCode, Long batchId, Long runId, Instant now,
                                                boolean forceFail, SimulationScenario scenario) {
-        boolean fail = forceFail || random.nextDouble() < scenario.weightFailRate;
-        double value = fail ? failValue(SensorType.WEIGHT, 110.0) : numericValue(SensorType.WEIGHT, 95.0, 105.0, 110.0);
+        if (forceFail) {
+            currentWeight = failValue(SensorType.WEIGHT, 110.0);
+        } else {
+            // A higher fault rate gently pushes the process target toward the upper limit.
+            double targetFraction = Math.min(1.0, 0.5 + scenario.weightFailRate * 1.5);
+            currentWeight = walk(SensorType.WEIGHT, currentWeight, targetFraction, 0.16);
+        }
         return new SensorReadingMessage(SensorType.WEIGHT, "WEIGHT-1", productCode, null,
-                batchId, runId, value, "g", null, null, now);
+                batchId, runId, currentWeight, "g", null, null, now);
     }
 
     private SensorReadingMessage cameraReading(String productCode, Long batchId, Long runId, Instant now,
@@ -177,64 +186,58 @@ public class SensorSimulationService {
     }
 
     private SensorReadingMessage temperatureReading(Long runId, Instant now, boolean forceSpike) {
-        double value = forceSpike ? failValue(SensorType.TEMPERATURE, 35.0) : numericValue(SensorType.TEMPERATURE, 18.0, 30.0, 35.0);
+        if (forceSpike) {
+            currentTemperature = failValue(SensorType.TEMPERATURE, 35.0);
+        } else {
+            currentTemperature = walk(SensorType.TEMPERATURE, currentTemperature, 0.45, 0.14);
+        }
         return new SensorReadingMessage(SensorType.TEMPERATURE, "TEMPERATURE-1", null, MACHINE_ID,
-                null, runId, value, "C", null, null, now);
+                null, runId, currentTemperature, "C", null, null, now);
     }
 
     private SensorReadingMessage vibrationReading(Long runId, Instant now, boolean forceSpike, SimulationScenario scenario) {
-        double value;
         if (forceSpike) {
-            value = failValue(SensorType.VIBRATION, 8.0);
+            currentVibration = failValue(SensorType.VIBRATION, 8.0);
         } else if (scenario.vibrationSpikeChance > 0) {
-            // Vibration-fault scenario: readings stay consistently elevated (sustained).
-            value = random.nextDouble() < 0.5
-                    ? failValue(SensorType.VIBRATION, 8.0)
-                    : elevatedValue(SensorType.VIBRATION, 5.0, 8.0);
+            // Vibration-fault scenario: drift sustained above the warning level.
+            currentVibration = walk(SensorType.VIBRATION, currentVibration, 1.35, 0.14);
         } else {
-            value = numericValue(SensorType.VIBRATION, 0.0, 5.0, 8.0);
+            currentVibration = walk(SensorType.VIBRATION, currentVibration, 0.4, 0.16);
         }
         return new SensorReadingMessage(SensorType.VIBRATION, "VIBRATION-1", null, MACHINE_ID,
-                null, runId, value, "mm/s", null, null, now);
+                null, runId, currentVibration, "mm/s", null, null, now);
     }
 
     // ----- Value generation -----
 
-    private double numericValue(SensorType type, double defWarnMin, double defWarnMax, double defMax) {
-        double warnMin = defWarnMin;
-        double warnMax = defWarnMax;
-        double max = defMax;
-
-        ThresholdConfiguration threshold = thresholdRepository.findBySensorType(type).orElse(null);
-        if (threshold != null) {
-            warnMin = threshold.getWarnMinValue();
-            warnMax = threshold.getWarnMaxValue();
-            max = threshold.getMaxValue();
-        }
-
-        double roll = random.nextDouble();
-        double value;
-        if (roll < 0.85) {
-            value = uniform(warnMin, warnMax);                                  // PASS band
-        } else {
-            value = uniform(warnMax, max);                                      // WARNING band
-        }
-        return round1(value);
-    }
-
-    /** A value in the warning band (between warnMax and max), used for sustained elevation. */
-    private double elevatedValue(SensorType type, double defWarnMax, double defMax) {
+    /**
+     * One step of a mean-reverting random walk toward a target inside the sensor's band.
+     * The value moves only a little each tick (gentle reversion + small noise), so the
+     * signal looks smooth and realistic. {@code targetFraction} positions the target
+     * relative to the PASS band (0.5 = middle, &gt;1 = above the warning limit);
+     * {@code smoothness} scales the per-step noise.
+     */
+    private double walk(SensorType type, double current, double targetFraction, double smoothness) {
         ThresholdConfiguration t = thresholdRepository.findBySensorType(type).orElse(null);
-        double warnMax = t != null ? t.getWarnMaxValue() : defWarnMax;
-        double max = t != null ? t.getMaxValue() : defMax;
-        return round1(uniform(warnMax, max));
+        double min = t != null ? t.getMinValue() : 0.0;
+        double warnMin = t != null ? t.getWarnMinValue() : 0.0;
+        double warnMax = t != null ? t.getWarnMaxValue() : 1.0;
+        double max = t != null ? t.getMaxValue() : warnMax;
+
+        double band = Math.max(1.0, warnMax - warnMin);
+        double target = warnMin + band * targetFraction;
+        double next = current + 0.12 * (target - current) + band * smoothness * random.nextGaussian();
+
+        double lower = min;
+        double upper = max + (max - warnMax) * 1.2; // allow occasional excursions into the fail band
+        return round1(Math.max(lower, Math.min(upper, next)));
     }
 
-    /** A value above the hard limit, used for fail-band weights and injected spikes. */
+    /** A value above the hard limit, used for injected faults and spikes. */
     private double failValue(SensorType type, double defMax) {
         double max = thresholdRepository.findBySensorType(type)
                 .map(ThresholdConfiguration::getMaxValue).orElse(defMax);
-        return round1(max + uniform(5.0, 12.0));
+        return round1(max + uniform(3.0, 8.0));
     }
 
     private double uniform(double min, double max) {
