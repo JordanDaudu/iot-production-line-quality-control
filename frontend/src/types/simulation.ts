@@ -6,3 +6,11 @@ export interface SimulationStatus {
   scenario: string | null;
   state: SimulationState;
 }
+
+// Mirrors the backend FaultType enum.
+export type FaultType =
+  | 'OVERWEIGHT_PRODUCT'
+  | 'VISUAL_DEFECT'
+  | 'TEMPERATURE_SPIKE'
+  | 'VIBRATION_SPIKE'
+  | 'SENSOR_DISCONNECT';

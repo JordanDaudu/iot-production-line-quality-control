@@ -12,5 +12,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
 
     List<Alert> findTop100ByOrderByCreatedAtDesc();
 
+    List<Alert> findByProductCodeOrderByCreatedAtDesc(String productCode);
+
     long countByStatus(AlertStatus status);
 }

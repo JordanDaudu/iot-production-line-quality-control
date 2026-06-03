@@ -1,14 +1,17 @@
 package com.smartiot.qualityinspection.sensor.service;
 
 import com.smartiot.qualityinspection.common.enums.SensorType;
+import com.smartiot.qualityinspection.common.event.ProductReadingsCompletedEvent;
 import com.smartiot.qualityinspection.sensor.dto.SensorReadingMessage;
 import com.smartiot.qualityinspection.simulation.model.Product;
 import com.smartiot.qualityinspection.simulation.repository.ProductRepository;
+import com.smartiot.qualityinspection.simulation.service.FaultInjectionService;
 import com.smartiot.qualityinspection.simulation.service.SimulationService;
 import com.smartiot.qualityinspection.threshold.model.ThresholdConfiguration;
 import com.smartiot.qualityinspection.threshold.repository.ThresholdConfigurationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -17,13 +20,14 @@ import java.util.Random;
 
 /**
  * Virtual IoT sensor simulator. While a simulation is RUNNING, each scheduled tick runs
- * one production cycle: a new product is created (barcode), product-level readings
- * (weight, camera) are produced for it, and machine-level readings (temperature,
- * vibration) are produced for the station.
+ * one production cycle: a new product (barcode), product-level readings (weight, camera)
+ * and machine-level readings (temperature, vibration). Every reading is submitted through
+ * {@link IngestionService} — the same validated inbound channel an external sensor client
+ * would use.
  *
- * <p>Every reading is submitted through {@link IngestionService}, i.e. the same validated
- * inbound channel an external sensor client would use. Each emission is isolated so one
- * failing sensor cannot stop the others (NFR-06).
+ * <p>Injected faults are applied here: spike/defect faults force the next reading into the
+ * fail band, and a disconnected sensor simply stops emitting so the health monitor detects
+ * it as offline.
  */
 @Service
 public class SensorSimulationService {
@@ -39,16 +43,22 @@ public class SensorSimulationService {
     private final IngestionService ingestionService;
     private final ProductRepository productRepository;
     private final ThresholdConfigurationRepository thresholdRepository;
+    private final FaultInjectionService faultInjectionService;
+    private final ApplicationEventPublisher eventPublisher;
     private final Random random = new Random();
 
     public SensorSimulationService(SimulationService simulationService,
                                    IngestionService ingestionService,
                                    ProductRepository productRepository,
-                                   ThresholdConfigurationRepository thresholdRepository) {
+                                   ThresholdConfigurationRepository thresholdRepository,
+                                   FaultInjectionService faultInjectionService,
+                                   ApplicationEventPublisher eventPublisher) {
         this.simulationService = simulationService;
         this.ingestionService = ingestionService;
         this.productRepository = productRepository;
         this.thresholdRepository = thresholdRepository;
+        this.faultInjectionService = faultInjectionService;
+        this.eventPublisher = eventPublisher;
     }
 
     @Scheduled(fixedDelayString = "${simulation.tick-interval-ms:3000}")
@@ -62,25 +72,36 @@ public class SensorSimulationService {
             return;
         }
 
+        // Consume any one-shot faults for this cycle.
+        boolean overweight = faultInjectionService.consumeOverweight();
+        boolean visualDefect = faultInjectionService.consumeVisualDefect();
+        boolean tempSpike = faultInjectionService.consumeTemperatureSpike();
+        boolean vibrationSpike = faultInjectionService.consumeVibrationSpike();
+
         Instant now = Instant.now();
         String productCode = simulationService.nextProductCode();
         productRepository.save(new Product(productCode, batchId, runId, now));
 
         // Product-level readings.
-        emit(barcodeReading(productCode, batchId, runId, now));
-        emit(weightReading(productCode, batchId, runId, now));
-        emit(cameraReading(productCode, batchId, runId, now));
+        emitIfConnected(barcodeReading(productCode, batchId, runId, now));
+        emitIfConnected(weightReading(productCode, batchId, runId, now, overweight));
+        emitIfConnected(cameraReading(productCode, batchId, runId, now, visualDefect));
 
         // Machine-level readings.
-        emit(temperatureReading(runId, now));
-        emit(vibrationReading(runId, now));
+        emitIfConnected(temperatureReading(runId, now, tempSpike));
+        emitIfConnected(vibrationReading(runId, now, vibrationSpike));
+
+        // Signal that this product's readings are complete so it can be classified.
+        eventPublisher.publishEvent(new ProductReadingsCompletedEvent(productCode, batchId, runId));
     }
 
-    private void emit(SensorReadingMessage message) {
+    private void emitIfConnected(SensorReadingMessage message) {
+        if (faultInjectionService.isDisconnected(message.sensorKey())) {
+            return; // sensor is "disconnected" — skip emitting so it goes offline
+        }
         try {
             ingestionService.ingest(message);
         } catch (Exception ex) {
-            // Isolate a single sensor failure; the simulation keeps running.
             log.warn("Failed to ingest {} reading: {}", message.sensorType(), ex.getMessage());
         }
     }
@@ -92,38 +113,33 @@ public class SensorSimulationService {
                 batchId, runId, null, null, null, null, now);
     }
 
-    private SensorReadingMessage weightReading(String productCode, Long batchId, Long runId, Instant now) {
-        double value = numericValue(SensorType.WEIGHT, 95.0, 105.0, 110.0);
+    private SensorReadingMessage weightReading(String productCode, Long batchId, Long runId, Instant now, boolean forceFail) {
+        double value = forceFail ? failValue(SensorType.WEIGHT, 110.0) : numericValue(SensorType.WEIGHT, 95.0, 105.0, 110.0);
         return new SensorReadingMessage(SensorType.WEIGHT, "WEIGHT-1", productCode, null,
                 batchId, runId, value, "g", null, null, now);
     }
 
-    private SensorReadingMessage cameraReading(String productCode, Long batchId, Long runId, Instant now) {
-        String defect = DEFECT_CATEGORIES[random.nextInt(DEFECT_CATEGORIES.length)];
-        double confidence = "OK".equals(defect) ? uniform(85, 100) : uniform(55, 95);
+    private SensorReadingMessage cameraReading(String productCode, Long batchId, Long runId, Instant now, boolean forceDefect) {
+        String defect = forceDefect ? "CRACK" : DEFECT_CATEGORIES[random.nextInt(DEFECT_CATEGORIES.length)];
+        double confidence = forceDefect ? uniform(30, 60) : ("OK".equals(defect) ? uniform(85, 100) : uniform(55, 95));
         return new SensorReadingMessage(SensorType.CAMERA, "CAMERA-1", productCode, null,
                 batchId, runId, null, null, defect, round1(confidence), now);
     }
 
-    private SensorReadingMessage temperatureReading(Long runId, Instant now) {
-        double value = numericValue(SensorType.TEMPERATURE, 18.0, 30.0, 35.0);
+    private SensorReadingMessage temperatureReading(Long runId, Instant now, boolean forceSpike) {
+        double value = forceSpike ? failValue(SensorType.TEMPERATURE, 35.0) : numericValue(SensorType.TEMPERATURE, 18.0, 30.0, 35.0);
         return new SensorReadingMessage(SensorType.TEMPERATURE, "TEMPERATURE-1", null, MACHINE_ID,
                 null, runId, value, "C", null, null, now);
     }
 
-    private SensorReadingMessage vibrationReading(Long runId, Instant now) {
-        double value = numericValue(SensorType.VIBRATION, 0.0, 5.0, 8.0);
+    private SensorReadingMessage vibrationReading(Long runId, Instant now, boolean forceSpike) {
+        double value = forceSpike ? failValue(SensorType.VIBRATION, 8.0) : numericValue(SensorType.VIBRATION, 0.0, 5.0, 8.0);
         return new SensorReadingMessage(SensorType.VIBRATION, "VIBRATION-1", null, MACHINE_ID,
                 null, runId, value, "mm/s", null, null, now);
     }
 
     // ----- Value generation -----
 
-    /**
-     * Generates a realistic value using the active thresholds for this sensor type so the
-     * stream contains mostly-normal readings with occasional warning/fail-range values.
-     * Falls back to the provided default bands if no threshold is configured.
-     */
     private double numericValue(SensorType type, double defWarnMin, double defWarnMax, double defMax) {
         double warnMin = defWarnMin;
         double warnMax = defWarnMax;
@@ -146,6 +162,13 @@ public class SensorSimulationService {
             value = uniform(max, max + Math.max(5.0, max - warnMax));           // FAIL band
         }
         return round1(value);
+    }
+
+    /** A value above the hard limit, used for injected faults (guaranteed fail band). */
+    private double failValue(SensorType type, double defMax) {
+        double max = thresholdRepository.findBySensorType(type)
+                .map(ThresholdConfiguration::getMaxValue).orElse(defMax);
+        return round1(max + uniform(5.0, 12.0));
     }
 
     private double uniform(double min, double max) {

@@ -4,8 +4,11 @@ import { StompProvider } from '../context/StompContext';
 import AppLayout from '../components/layout/AppLayout';
 import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/DashboardPage';
+import ProductsPage from '../pages/ProductsPage';
 import SimulationControlPage from '../pages/SimulationControlPage';
-import PlaceholderPage from '../pages/PlaceholderPage';
+import AlertsPage from '../pages/AlertsPage';
+import ReportsPage from '../pages/ReportsPage';
+import SettingsPage from '../pages/SettingsPage';
 
 /**
  * Top-level routing. Unauthenticated users see the login screen. Authenticated users get
@@ -27,10 +30,11 @@ export default function AppRoutes() {
       <AppLayout>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/products" element={<ProductsPage />} />
           <Route path="/simulation" element={<SimulationControlPage />} />
-          <Route path="/alerts" element={<PlaceholderPage title="Alerts" />} />
-          <Route path="/reports" element={<PlaceholderPage title="Reports" />} />
-          <Route path="/settings" element={<PlaceholderPage title="Settings" />} />
+          <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppLayout>

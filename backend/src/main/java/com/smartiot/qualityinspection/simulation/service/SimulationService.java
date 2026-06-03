@@ -38,6 +38,7 @@ public class SimulationService {
     private final SimulationRunRepository runRepository;
     private final BatchRepository batchRepository;
     private final RealtimeBroadcaster broadcaster;
+    private final FaultInjectionService faultInjectionService;
 
     // In-memory live context for the running simulation.
     private volatile SimulationState state = SimulationState.IDLE;
@@ -49,10 +50,12 @@ public class SimulationService {
 
     public SimulationService(SimulationRunRepository runRepository,
                              BatchRepository batchRepository,
-                             RealtimeBroadcaster broadcaster) {
+                             RealtimeBroadcaster broadcaster,
+                             FaultInjectionService faultInjectionService) {
         this.runRepository = runRepository;
         this.batchRepository = batchRepository;
         this.broadcaster = broadcaster;
+        this.faultInjectionService = faultInjectionService;
     }
 
     public synchronized SimulationStatusDto start(String requestedScenario) {
@@ -116,6 +119,7 @@ public class SimulationService {
         currentBatchCode = null;
         scenario = null;
         productSequence.set(0);
+        faultInjectionService.reset();
         log.info("Simulation reset to IDLE; persisted history retained");
         return broadcastStatus();
     }

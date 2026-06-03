@@ -64,8 +64,8 @@ public class Alert {
 
     private Instant resolvedAt;
 
-    protected Alert() {
-        // Required by JPA.
+    public Alert() {
+        // Public no-arg constructor: required by JPA and used by AlertService.
     }
 
     public Long getId() {

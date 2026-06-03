@@ -12,6 +12,9 @@ data/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -30,6 +33,10 @@ Thumbs.db
 
 # ===== Misc =====
 *.tmp
+.e2e-tmp/
+
+# Requirement/test documents contain personal data (names + ID numbers) — keep out of git
+*.docx
 
 .claude
 .replit

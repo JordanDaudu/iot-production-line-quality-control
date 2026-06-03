@@ -1,5 +1,6 @@
 package com.smartiot.qualityinspection.sensor.service;
 
+import com.smartiot.qualityinspection.common.event.SensorReadingIngestedEvent;
 import com.smartiot.qualityinspection.sensor.dto.SensorReadingDto;
 import com.smartiot.qualityinspection.sensor.dto.SensorReadingMessage;
 import com.smartiot.qualityinspection.sensor.model.SensorReading;
@@ -7,6 +8,7 @@ import com.smartiot.qualityinspection.sensor.repository.SensorReadingRepository;
 import com.smartiot.qualityinspection.websocket.service.RealtimeBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 /**
@@ -22,13 +24,16 @@ public class IngestionService {
     private final ReadingValidator validator;
     private final SensorReadingRepository readingRepository;
     private final RealtimeBroadcaster broadcaster;
+    private final ApplicationEventPublisher eventPublisher;
 
     public IngestionService(ReadingValidator validator,
                             SensorReadingRepository readingRepository,
-                            RealtimeBroadcaster broadcaster) {
+                            RealtimeBroadcaster broadcaster,
+                            ApplicationEventPublisher eventPublisher) {
         this.validator = validator;
         this.readingRepository = readingRepository;
         this.broadcaster = broadcaster;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -44,6 +49,7 @@ public class IngestionService {
         SensorReading saved = readingRepository.save(reading);
 
         broadcaster.broadcastReading(SensorReadingDto.from(saved));
+        eventPublisher.publishEvent(new SensorReadingIngestedEvent(saved));
         log.debug("Ingested {} reading {} (sensor {})",
                 saved.getSensorType(), saved.getId(), saved.getSensorKey());
         return saved;

@@ -1,5 +1,8 @@
 package com.smartiot.qualityinspection.websocket.service;
 
+import com.smartiot.qualityinspection.alert.dto.AlertDto;
+import com.smartiot.qualityinspection.dashboard.dto.DashboardSummaryDto;
+import com.smartiot.qualityinspection.inspection.dto.InspectionResultDto;
 import com.smartiot.qualityinspection.sensor.dto.SensorReadingDto;
 import com.smartiot.qualityinspection.simulation.dto.SimulationStatusDto;
 import com.smartiot.qualityinspection.websocket.WebSocketTopics;
@@ -25,5 +28,17 @@ public class RealtimeBroadcaster {
 
     public void broadcastSimulationState(SimulationStatusDto status) {
         messagingTemplate.convertAndSend(WebSocketTopics.SIMULATION_STATE, status);
+    }
+
+    public void broadcastInspectionResult(InspectionResultDto result) {
+        messagingTemplate.convertAndSend(WebSocketTopics.INSPECTION_RESULTS, result);
+    }
+
+    public void broadcastAlert(AlertDto alert) {
+        messagingTemplate.convertAndSend(WebSocketTopics.ALERTS, alert);
+    }
+
+    public void broadcastDashboardSummary(DashboardSummaryDto summary) {
+        messagingTemplate.convertAndSend(WebSocketTopics.DASHBOARD_SUMMARY, summary);
     }
 }

@@ -19,16 +19,27 @@ a coherent slice of behaviour. Steps map to the assignment's MVP order.
 - Frontend: shared STOMP connection (StompProvider), Simulation control page, dashboard
   live readings feed.
 
-## Increment 3 — Quality + alerts + live dashboard
-7. Quality inspection engine (PASS / WARNING / FAIL) + explanations.
-8. Alert generation (failed product, maintenance, sensor health).
-9. Live dashboard WebSocket updates (KPIs, latest products, alerts, sensor health).
+## Increment 3 — Quality + alerts + live dashboard ✅
+7. Quality inspection engine (PASS / WARNING / FAIL) + explanations — pure
+   QualityInspectionEngine + event-driven InspectionService.
+8. Alert generation: failed-product (on FAIL) + maintenance (machine over-limit). Sensor
+   health is tracked (online/last-seen); offline detection deferred to Increment 4 with
+   the disconnect fault.
+9. Live dashboard: KPIs, latest results, active alerts, sensor status via
+   `/topic/dashboard-summary` (+ GET /api/dashboard/summary), `/topic/inspection-results`,
+   `/topic/alerts`.
+- Event-driven: SensorReadingIngestedEvent + ProductReadingsCompletedEvent keep the
+  simulator, ingestion, inspection and alert modules decoupled.
 
-## Increment 4 — Details, config, reports, faults
-10. Product details + traceability.
-11. Threshold configuration (admin-only).
-12. Historical reports + filtering.
-13. Fault injection (admin-only).
+## Increment 4 — Details, config, reports, faults ✅
+10. Product details + traceability: `GET /api/products` (filtered), `GET /api/products/{code}`
+    (readings + result + alerts); Products page with drill-down.
+11. Threshold configuration (admin-only): `GET/PUT /api/thresholds`, hot-applied; Settings page.
+12. Historical reports + filtering: `GET /api/reports/quality-summary`; Reports page (Recharts).
+13. Fault injection (admin-only): `POST /api/simulation/faults` (overweight, defect, temp/vibration
+    spike, sensor disconnect) + scheduled sensor offline detection & recovery.
+- Plus alert acknowledge/resolve (FR-24): `GET /api/alerts`, `POST /api/alerts/{id}/acknowledge|resolve`;
+  Alerts page. Malformed-JSON now returns 400.
 
 ## Increment 5 — Polish + evidence
 14. Demo seed data, README finalisation, test cases mapped to TC-E2E-01..19.

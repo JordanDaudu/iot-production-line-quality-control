@@ -8,18 +8,29 @@ import {
   pauseSimulation,
   stopSimulation,
   resetSimulation,
+  injectFault,
 } from '../api/simulationApi';
-import type { SimulationStatus, SimulationState } from '../types/simulation';
+import type { SimulationStatus, SimulationState, FaultType } from '../types/simulation';
 
 const CONTROL_ROLES = ['OPERATOR', 'ADMINISTRATOR'];
+
+const FAULTS: { type: FaultType; label: string }[] = [
+  { type: 'OVERWEIGHT_PRODUCT', label: 'Overweight product' },
+  { type: 'VISUAL_DEFECT', label: 'Visual defect (crack)' },
+  { type: 'TEMPERATURE_SPIKE', label: 'Temperature spike' },
+  { type: 'VIBRATION_SPIKE', label: 'Vibration spike' },
+  { type: 'SENSOR_DISCONNECT', label: 'Disconnect vibration sensor' },
+];
 
 export default function SimulationControlPage() {
   const { user } = useAuth();
   const canControl = !!user && CONTROL_ROLES.includes(user.role);
+  const isAdmin = user?.role === 'ADMINISTRATOR';
 
   const [status, setStatus] = useState<SimulationStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [faultMsg, setFaultMsg] = useState<string | null>(null);
 
   useEffect(() => {
     getSimulationState().then(setStatus).catch(() => setError('Could not load simulation state.'));
@@ -44,6 +55,17 @@ export default function SimulationControlPage() {
   }
 
   const state: SimulationState = status?.state ?? 'IDLE';
+
+  async function fire(faultType: FaultType) {
+    setFaultMsg(null);
+    try {
+      const res = await injectFault(faultType);
+      setFaultMsg(res.message);
+    } catch (e: unknown) {
+      const s = (e as { response?: { status?: number } }).response?.status;
+      setFaultMsg(s === 403 ? 'Administrator role required for fault injection.' : 'Fault injection failed.');
+    }
+  }
 
   return (
     <div className="page">
@@ -98,6 +120,21 @@ export default function SimulationControlPage() {
         Reset clears the live runtime state and returns to IDLE; persisted history is kept.
         Watch the dashboard to see readings stream while the simulation runs.
       </p>
+
+      {isAdmin && (
+        <section className="card fault-panel">
+          <h3 className="card-title">Fault injection (Administrator)</h3>
+          <p className="muted">Inject a simulated fault on the next production cycle. Start the simulation first.</p>
+          <div className="button-row">
+            {FAULTS.map((f) => (
+              <button key={f.type} className="secondary" disabled={state !== 'RUNNING'} onClick={() => fire(f.type)}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {faultMsg && <div className="ok-text">{faultMsg}</div>}
+        </section>
+      )}
     </div>
   );
 }

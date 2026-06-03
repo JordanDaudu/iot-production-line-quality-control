@@ -1,8 +1,12 @@
 package com.smartiot.qualityinspection.simulation.controller;
 
+import com.smartiot.qualityinspection.simulation.dto.FaultInjectionRequest;
+import com.smartiot.qualityinspection.simulation.dto.FaultInjectionResponse;
 import com.smartiot.qualityinspection.simulation.dto.SimulationStatusDto;
 import com.smartiot.qualityinspection.simulation.dto.StartSimulationRequest;
+import com.smartiot.qualityinspection.simulation.service.FaultInjectionService;
 import com.smartiot.qualityinspection.simulation.service.SimulationService;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,9 +24,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class SimulationController {
 
     private final SimulationService simulationService;
+    private final FaultInjectionService faultInjectionService;
 
-    public SimulationController(SimulationService simulationService) {
+    public SimulationController(SimulationService simulationService,
+                                FaultInjectionService faultInjectionService) {
         this.simulationService = simulationService;
+        this.faultInjectionService = faultInjectionService;
     }
 
     @GetMapping("/state")
@@ -54,4 +61,13 @@ public class SimulationController {
     public SimulationStatusDto reset() {
         return simulationService.reset();
     }
+
+    @PostMapping("/faults")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
+    public FaultInjectionResponse injectFault(@Valid @RequestBody FaultInjectionRequest request) {
+        String message = faultInjectionService.inject(
+                request.faultType(), request.sensorKey(), request.durationSeconds());
+        return new FaultInjectionResponse(request.faultType().name(), message);
+    }
 }
+
