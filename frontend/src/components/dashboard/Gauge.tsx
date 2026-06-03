@@ -15,13 +15,13 @@ function polar(cx: number, cy: number, r: number, deg: number) {
 
 /**
  * A 180° radial gauge. The arc fills to the current value and recolours green → amber →
- * red across the warn/danger thresholds. The numeric readout is rendered as HTML in the
- * open mouth of the arc, so it is always legible and never covered by the bar.
+ * red across the warn/danger thresholds. The numeric readout and label sit in normal
+ * flow BELOW the arc, so the value can never be covered by the bar.
  */
 export default function Gauge({ value, min, max, warn, danger, label, unit }: GaugeProps) {
-  const cx = 75;
-  const cy = 70;
-  const r = 54;
+  const cx = 70;
+  const cy = 60;
+  const r = 48;
   const clamped = Math.max(min, Math.min(max, value));
   const frac = (clamped - min) / (max - min || 1);
   const valAngle = 180 - frac * 180; // 180° (left) → 0° (right)
@@ -33,26 +33,24 @@ export default function Gauge({ value, min, max, warn, danger, label, unit }: Ga
 
   return (
     <div className="gauge">
-      <div className="gauge-arc">
-        <svg viewBox="0 0 150 84">
-          <path
-            d={`M ${left.x} ${left.y} A ${r} ${r} 0 0 0 ${right.x} ${right.y}`}
-            fill="none"
-            stroke="var(--border-bright)"
-            strokeWidth="9"
-            strokeLinecap="round"
-          />
-          <path
-            d={`M ${left.x} ${left.y} A ${r} ${r} 0 0 0 ${end.x} ${end.y}`}
-            fill="none"
-            stroke={color}
-            strokeWidth="9"
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="gauge-readout" style={{ color }}>
-          {Number.isFinite(value) ? value.toFixed(1) : '—'}
-        </div>
+      <svg className="gauge-svg" viewBox="0 0 140 70">
+        <path
+          d={`M ${left.x} ${left.y} A ${r} ${r} 0 0 0 ${right.x} ${right.y}`}
+          fill="none"
+          stroke="var(--border-bright)"
+          strokeWidth="9"
+          strokeLinecap="round"
+        />
+        <path
+          d={`M ${left.x} ${left.y} A ${r} ${r} 0 0 0 ${end.x} ${end.y}`}
+          fill="none"
+          stroke={color}
+          strokeWidth="9"
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="gauge-readout" style={{ color }}>
+        {Number.isFinite(value) ? value.toFixed(1) : '—'}
       </div>
       <div className="gauge-label">
         {label} · {unit}

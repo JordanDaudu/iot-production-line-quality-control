@@ -7,13 +7,12 @@ import { useCountUp } from '../hooks/useCountUp';
 import { getDashboardSummary } from '../api/dashboardApi';
 import { getSimulationState } from '../api/simulationApi';
 import { Topics } from '../websocket/eventTypes';
-import ProductionLine from '../components/dashboard/ProductionLine';
 import Sparkline from '../components/dashboard/Sparkline';
 import Gauge from '../components/dashboard/Gauge';
 import type { SensorReading } from '../types/sensor';
 import type { SimulationStatus, SimulationState } from '../types/simulation';
 import type { DashboardSummary } from '../types/dashboard';
-import type { InspectionResult, QualityStatus } from '../types/inspection';
+import type { QualityStatus } from '../types/inspection';
 
 const MAX_ROWS = 18;
 const HIST = 24;
@@ -28,7 +27,6 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [simulation, setSimulation] = useState<SimulationStatus | null>(null);
   const [readings, setReadings] = useState<SensorReading[]>([]);
-  const [prodItems, setProdItems] = useState<InspectionResult[]>([]);
   const [hist, setHist] = useState<{ pass: number[]; warning: number[]; fail: number[]; alerts: number[] }>({
     pass: [],
     warning: [],
@@ -57,10 +55,6 @@ export default function DashboardPage() {
 
   useSubscription(Topics.DASHBOARD_SUMMARY, (m) => applySummary(JSON.parse(m.body) as DashboardSummary));
   useSubscription(Topics.SIMULATION_STATE, (m) => setSimulation(JSON.parse(m.body) as SimulationStatus));
-  useSubscription(Topics.INSPECTION_RESULTS, (m) => {
-    const r = JSON.parse(m.body) as InspectionResult;
-    setProdItems((prev) => [r, ...prev].slice(0, 14));
-  });
   useSubscription(Topics.READINGS, (m) => {
     const reading = JSON.parse(m.body) as SensorReading;
     setReadings((prev) => [reading, ...prev].slice(0, MAX_ROWS));
@@ -85,8 +79,6 @@ export default function DashboardPage() {
         <h2>Live Dashboard</h2>
         <ConnectionBadge status={status} />
       </div>
-
-      <ProductionLine items={prodItems} />
 
       <section className="kpi-grid">
         <KpiCard label="Pass" value={summary?.passCount ?? 0} tone="pass" history={hist.pass} />
@@ -113,13 +105,13 @@ export default function DashboardPage() {
             <div style={{ width: '100%', height: 180, marginTop: '0.5rem' }}>
               <ResponsiveContainer>
                 <LineChart data={trend} margin={{ top: 5, right: 16, bottom: 5, left: -12 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1d2a3a" />
-                  <XAxis dataKey="t" tick={{ fontSize: 10, fill: '#6b7d92' }} />
-                  <YAxis tick={{ fontSize: 10, fill: '#6b7d92' }} />
-                  <Tooltip contentStyle={{ background: '#0b121b', border: '1px solid #25384c' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="t" tick={{ fontSize: 10, fill: '#647386' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#647386' }} />
+                  <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #dde4ee' }} />
                   <Legend />
-                  <Line type="monotone" dataKey="temperature" stroke="#2dd4ee" dot={false} name="Temp (°C)" />
-                  <Line type="monotone" dataKey="vibration" stroke="#f7b733" dot={false} name="Vibration" />
+                  <Line type="monotone" dataKey="temperature" stroke="#0e8ba8" dot={false} name="Temp (°C)" />
+                  <Line type="monotone" dataKey="vibration" stroke="#d4860f" dot={false} name="Vibration" />
                 </LineChart>
               </ResponsiveContainer>
             </div>
