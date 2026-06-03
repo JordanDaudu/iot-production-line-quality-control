@@ -6,7 +6,6 @@ import { Topics } from '../../websocket/eventTypes';
 import { getSimulationState } from '../../api/simulationApi';
 import type { SimulationState, SimulationStatus } from '../../types/simulation';
 import LiveBeacon from './LiveBeacon';
-import Toaster from '../common/Toaster';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true },
@@ -65,8 +64,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </nav>
         <main className="app-content">{children}</main>
       </div>
-
-      <Toaster />
     </div>
   );
 }
