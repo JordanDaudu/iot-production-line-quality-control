@@ -3,6 +3,13 @@ import type { Alert } from './alert';
 import type { SensorHealth } from './sensor';
 import type { SimulationState } from './simulation';
 
+// Mirrors the backend TelemetryPointDto.
+export interface TelemetryPoint {
+  timestamp: string;
+  temperature: number | null;
+  vibration: number | null;
+}
+
 // Mirrors the backend dashboard summary DTO (built in a later increment).
 export interface DashboardSummary {
   passCount: number;

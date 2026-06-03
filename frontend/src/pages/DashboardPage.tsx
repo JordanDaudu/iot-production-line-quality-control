@@ -4,7 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useStompContext } from '../context/StompContext';
 import { useSubscription } from '../hooks/useSubscription';
 import { useCountUp } from '../hooks/useCountUp';
-import { getDashboardSummary } from '../api/dashboardApi';
+import { getDashboardSummary, getTelemetry } from '../api/dashboardApi';
 import { getSimulationState } from '../api/simulationApi';
 import { Topics } from '../websocket/eventTypes';
 import Sparkline from '../components/dashboard/Sparkline';
@@ -51,6 +51,17 @@ export default function DashboardPage() {
   useEffect(() => {
     getDashboardSummary().then(applySummary).catch(() => undefined);
     getSimulationState().then(setSimulation).catch(() => undefined);
+    // Seed the trend chart with the run's full history so it shows from the beginning.
+    getTelemetry()
+      .then((points) => {
+        if (points.length === 0) return;
+        setTrend(points.map((p) => ({ t: formatTime(p.timestamp), temperature: p.temperature, vibration: p.vibration })));
+        const lastTemp = [...points].reverse().find((p) => p.temperature != null)?.temperature;
+        const lastVib = [...points].reverse().find((p) => p.vibration != null)?.vibration;
+        if (lastTemp != null) { lastTempRef.current = lastTemp; setGaugeTemp(lastTemp); }
+        if (lastVib != null) setGaugeVib(lastVib);
+      })
+      .catch(() => undefined);
   }, []);
 
   useSubscription(Topics.DASHBOARD_SUMMARY, (m) => applySummary(JSON.parse(m.body) as DashboardSummary));
@@ -65,7 +76,7 @@ export default function DashboardPage() {
       const vib = reading.value;
       setGaugeVib(vib);
       setTrend((prev) =>
-        [...prev, { t: formatTime(reading.timestamp), temperature: lastTempRef.current, vibration: vib }].slice(-20),
+        [...prev, { t: formatTime(reading.timestamp), temperature: lastTempRef.current, vibration: vib }].slice(-2000),
       );
     }
   });
@@ -106,7 +117,7 @@ export default function DashboardPage() {
               <ResponsiveContainer>
                 <LineChart data={trend} margin={{ top: 5, right: 16, bottom: 5, left: -12 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="t" tick={{ fontSize: 10, fill: '#647386' }} />
+                  <XAxis dataKey="t" tick={{ fontSize: 10, fill: '#647386' }} minTickGap={60} interval="preserveStartEnd" />
                   <YAxis tick={{ fontSize: 10, fill: '#647386' }} />
                   <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #dde4ee' }} />
                   <Legend />

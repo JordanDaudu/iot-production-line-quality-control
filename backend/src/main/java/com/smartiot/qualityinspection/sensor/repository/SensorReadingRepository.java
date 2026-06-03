@@ -11,4 +11,7 @@ public interface SensorReadingRepository extends JpaRepository<SensorReading, Lo
 
     List<SensorReading> findTop50BySensorTypeOrderByTimestampDesc(
             com.smartiot.qualityinspection.common.enums.SensorType sensorType);
+
+    List<SensorReading> findBySimulationRunIdAndSensorTypeOrderByTimestampAsc(
+            Long simulationRunId, com.smartiot.qualityinspection.common.enums.SensorType sensorType);
 }
