@@ -41,8 +41,9 @@ a coherent slice of behaviour. Steps map to the assignment's MVP order.
 - Plus alert acknowledge/resolve (FR-24): `GET /api/alerts`, `POST /api/alerts/{id}/acknowledge|resolve`;
   Alerts page. Malformed-JSON now returns 400.
 
-## Increment 5 — Polish + evidence
-14. Demo seed data, README finalisation, test cases mapped to TC-E2E-01..19.
+## Increment 5 — Polish + evidence ✅
+14. Demo seed data (seeded users + thresholds), README finalisation, and an automated test
+    suite (25 tests) mapped to the TC-E2E cases — see `test-plan.md`.
 
 ## Key design decisions
 - **In-process sensors publish through the same validated inbound channel** an external
