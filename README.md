@@ -37,6 +37,16 @@ alerts, traceability and historical reports. No physical hardware required.
 
 ## Running locally
 
+**Quick start (one command):**
+
+- **Windows:** double-click **`start.cmd`** (or run it from a terminal). It auto-selects a
+  Java 21/23 JDK for the backend and opens the backend and frontend each in their own window.
+- **macOS / Linux / Replit:** `./start.sh`
+
+Then open http://localhost:5173 and sign in with `admin` / `admin123`.
+
+**Or start each side manually:**
+
 ```bash
 # Backend (port 8080)
 cd backend
