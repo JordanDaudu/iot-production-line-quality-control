@@ -1,6 +1,12 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSubscription } from '../../hooks/useSubscription';
+import { Topics } from '../../websocket/eventTypes';
+import { getSimulationState } from '../../api/simulationApi';
+import type { SimulationState, SimulationStatus } from '../../types/simulation';
+import LiveBeacon from './LiveBeacon';
+import Toaster from '../common/Toaster';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true },
@@ -12,17 +18,27 @@ const NAV_ITEMS = [
 ];
 
 /**
- * Shared application chrome: top bar with the active user/role and a left nav.
- * Nav targets beyond Dashboard are wired up in later increments.
+ * Shared application chrome: a state-tinted top bar with the live beacon and active
+ * user/role, a left nav, and global alert toasts.
  */
 export default function AppLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
+  const [simState, setSimState] = useState<SimulationState>('IDLE');
+
+  useEffect(() => {
+    getSimulationState().then((s) => setSimState(s.state)).catch(() => undefined);
+  }, []);
+
+  useSubscription(Topics.SIMULATION_STATE, (m) => {
+    setSimState((JSON.parse(m.body) as SimulationStatus).state);
+  });
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-sim-state={simState}>
       <header className="app-header">
-        <div className="brand">Smart IoT Quality Inspection</div>
+        <div className="brand">Smart IoT · Quality Inspection</div>
         <div className="header-right">
+          <LiveBeacon />
           {user && (
             <span className="role-badge" title={user.username}>
               {user.displayName} · {user.role}
@@ -49,6 +65,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </nav>
         <main className="app-content">{children}</main>
       </div>
+
+      <Toaster />
     </div>
   );
 }

@@ -3,20 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useStompContext } from '../context/StompContext';
 import { useSubscription } from '../hooks/useSubscription';
+import { useCountUp } from '../hooks/useCountUp';
 import { getDashboardSummary } from '../api/dashboardApi';
 import { getSimulationState } from '../api/simulationApi';
 import { Topics } from '../websocket/eventTypes';
+import ProductionLine from '../components/dashboard/ProductionLine';
+import Sparkline from '../components/dashboard/Sparkline';
+import Gauge from '../components/dashboard/Gauge';
 import type { SensorReading } from '../types/sensor';
 import type { SimulationStatus, SimulationState } from '../types/simulation';
 import type { DashboardSummary } from '../types/dashboard';
-import type { QualityStatus } from '../types/inspection';
+import type { InspectionResult, QualityStatus } from '../types/inspection';
 
-const MAX_ROWS = 20;
+const MAX_ROWS = 18;
+const HIST = 24;
 
 /**
- * Live dashboard. KPIs, latest inspection results, active alerts and sensor health come
- * from the dashboard-summary snapshot (initial REST load + live updates on
- * /topic/dashboard-summary). The raw reading feed comes from /topic/readings.
+ * Mission-control dashboard: animated production line, count-up KPIs with sparklines,
+ * machine gauges + trend, active alerts, sensor health and live feeds.
  */
 export default function DashboardPage() {
   const { status } = useStompContext();
@@ -24,31 +28,51 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [simulation, setSimulation] = useState<SimulationStatus | null>(null);
   const [readings, setReadings] = useState<SensorReading[]>([]);
+  const [prodItems, setProdItems] = useState<InspectionResult[]>([]);
+  const [hist, setHist] = useState<{ pass: number[]; warning: number[]; fail: number[]; alerts: number[] }>({
+    pass: [],
+    warning: [],
+    fail: [],
+    alerts: [],
+  });
   const lastTempRef = useRef<number | null>(null);
+  const [gaugeTemp, setGaugeTemp] = useState(0);
+  const [gaugeVib, setGaugeVib] = useState(0);
   const [trend, setTrend] = useState<{ t: string; temperature: number | null; vibration: number | null }[]>([]);
 
+  function applySummary(s: DashboardSummary) {
+    setSummary(s);
+    setHist((h) => ({
+      pass: [...h.pass, s.passCount].slice(-HIST),
+      warning: [...h.warning, s.warningCount].slice(-HIST),
+      fail: [...h.fail, s.failCount].slice(-HIST),
+      alerts: [...h.alerts, s.activeAlertCount].slice(-HIST),
+    }));
+  }
+
   useEffect(() => {
-    getDashboardSummary().then(setSummary).catch(() => undefined);
+    getDashboardSummary().then(applySummary).catch(() => undefined);
     getSimulationState().then(setSimulation).catch(() => undefined);
   }, []);
 
-  useSubscription(Topics.DASHBOARD_SUMMARY, (m) => setSummary(JSON.parse(m.body) as DashboardSummary));
+  useSubscription(Topics.DASHBOARD_SUMMARY, (m) => applySummary(JSON.parse(m.body) as DashboardSummary));
   useSubscription(Topics.SIMULATION_STATE, (m) => setSimulation(JSON.parse(m.body) as SimulationStatus));
+  useSubscription(Topics.INSPECTION_RESULTS, (m) => {
+    const r = JSON.parse(m.body) as InspectionResult;
+    setProdItems((prev) => [r, ...prev].slice(0, 14));
+  });
   useSubscription(Topics.READINGS, (m) => {
     const reading = JSON.parse(m.body) as SensorReading;
     setReadings((prev) => [reading, ...prev].slice(0, MAX_ROWS));
-
-    // Build a machine trend series: temperature is captured, then a point is added when
-    // the vibration reading (last in the tick) arrives, so both lines stay aligned.
     if (reading.sensorType === 'TEMPERATURE' && reading.value != null) {
       lastTempRef.current = reading.value;
+      setGaugeTemp(reading.value);
     } else if (reading.sensorType === 'VIBRATION' && reading.value != null) {
-      const point = {
-        t: formatTime(reading.timestamp),
-        temperature: lastTempRef.current,
-        vibration: reading.value,
-      };
-      setTrend((prev) => [...prev, point].slice(-20));
+      const vib = reading.value;
+      setGaugeVib(vib);
+      setTrend((prev) =>
+        [...prev, { t: formatTime(reading.timestamp), temperature: lastTempRef.current, vibration: vib }].slice(-20),
+      );
     }
   });
 
@@ -62,66 +86,43 @@ export default function DashboardPage() {
         <ConnectionBadge status={status} />
       </div>
 
+      <ProductionLine items={prodItems} />
+
       <section className="kpi-grid">
-        <KpiCard label="PASS" value={summary?.passCount ?? 0} tone="pass" />
-        <KpiCard label="WARNING" value={summary?.warningCount ?? 0} tone="warning" />
-        <KpiCard label="FAIL" value={summary?.failCount ?? 0} tone="fail" />
-        <KpiCard label="Active alerts" value={summary?.activeAlertCount ?? 0} tone="neutral" />
+        <KpiCard label="Pass" value={summary?.passCount ?? 0} tone="pass" history={hist.pass} />
+        <KpiCard label="Warning" value={summary?.warningCount ?? 0} tone="warning" history={hist.warning} />
+        <KpiCard label="Fail" value={summary?.failCount ?? 0} tone="fail" history={hist.fail} />
+        <KpiCard label="Active alerts" value={summary?.activeAlertCount ?? 0} tone="neutral" history={hist.alerts} />
       </section>
 
       <section className="stat-row">
         <StatCard label="Simulation" value={simState} />
         <StatCard label="Total inspected" value={summary?.totalInspected ?? 0} />
         <StatCard label="Sensors online" value={`${sensorsOnline}/${summary?.sensors.length ?? 0}`} />
-      </section>
-
-      <section className="card">
-        <h3 className="card-title">Machine trend (temperature &amp; vibration)</h3>
-        {trend.length === 0 ? (
-          <p className="muted">Machine readings will plot here once the simulation runs.</p>
-        ) : (
-          <div style={{ width: '100%', height: 220 }}>
-            <ResponsiveContainer>
-              <LineChart data={trend} margin={{ top: 5, right: 20, bottom: 5, left: -10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="t" tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="temperature" stroke="#38bdf8" dot={false} name="Temp (C)" />
-                <Line type="monotone" dataKey="vibration" stroke="#f59e0b" dot={false} name="Vibration (mm/s)" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        <StatCard label="Scenario" value={simulation?.scenario ?? '—'} />
       </section>
 
       <div className="dash-grid">
         <section className="card">
-          <h3 className="card-title">Latest inspection results</h3>
-          {summary && summary.latestResults.length > 0 ? (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Status</th>
-                  <th>Score</th>
-                  <th>Explanation</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.latestResults.map((r) => (
-                  <tr key={r.id} className="clickable" onClick={() => navigate(`/products?code=${encodeURIComponent(r.productCode)}`)}>
-                    <td>{r.productCode}</td>
-                    <td><StatusPill status={r.status} /></td>
-                    <td>{r.score ?? '—'}</td>
-                    <td className="explanation">{r.explanation}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="muted">No inspection results yet.</p>
+          <h3 className="card-title">Machine telemetry</h3>
+          <div className="gauge-row">
+            <Gauge value={gaugeTemp} min={10} max={45} warn={30} danger={35} label="Temperature" unit="°C" />
+            <Gauge value={gaugeVib} min={0} max={12} warn={5} danger={8} label="Vibration" unit="mm/s" />
+          </div>
+          {trend.length > 1 && (
+            <div style={{ width: '100%', height: 180, marginTop: '0.5rem' }}>
+              <ResponsiveContainer>
+                <LineChart data={trend} margin={{ top: 5, right: 16, bottom: 5, left: -12 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1d2a3a" />
+                  <XAxis dataKey="t" tick={{ fontSize: 10, fill: '#6b7d92' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#6b7d92' }} />
+                  <Tooltip contentStyle={{ background: '#0b121b', border: '1px solid #25384c' }} />
+                  <Legend />
+                  <Line type="monotone" dataKey="temperature" stroke="#2dd4ee" dot={false} name="Temp (°C)" />
+                  <Line type="monotone" dataKey="vibration" stroke="#f7b733" dot={false} name="Vibration" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </section>
 
@@ -129,7 +130,7 @@ export default function DashboardPage() {
           <h3 className="card-title">Active alerts</h3>
           {summary && summary.activeAlerts.length > 0 ? (
             <ul className="alert-list">
-              {summary.activeAlerts.map((a) => (
+              {summary.activeAlerts.slice(0, 6).map((a) => (
                 <li key={a.id} className={`alert-item sev-${a.severity.toLowerCase()}`}>
                   <div className="alert-top">
                     <span className="tag">{a.type}</span>
@@ -156,21 +157,36 @@ export default function DashboardPage() {
       </div>
 
       <section className="card">
+        <h3 className="card-title">Latest inspection results</h3>
+        {summary && summary.latestResults.length > 0 ? (
+          <table className="data-table">
+            <thead>
+              <tr><th>Product</th><th>Status</th><th>Score</th><th>Explanation</th></tr>
+            </thead>
+            <tbody>
+              {summary.latestResults.map((r) => (
+                <tr key={r.id} className="clickable" onClick={() => navigate(`/products?code=${encodeURIComponent(r.productCode)}`)}>
+                  <td>{r.productCode}</td>
+                  <td><StatusPill status={r.status} /></td>
+                  <td>{r.score ?? '—'}</td>
+                  <td className="explanation">{r.explanation}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="muted">No inspection results yet.</p>
+        )}
+      </section>
+
+      <section className="card">
         <h3 className="card-title">Live sensor readings</h3>
         {readings.length === 0 ? (
-          <p className="muted">
-            No readings yet. Start the simulation from the <strong>Simulation</strong> page.
-          </p>
+          <p className="muted">No readings yet. Start the simulation from the <strong>Simulation</strong> page.</p>
         ) : (
           <table className="data-table">
             <thead>
-              <tr>
-                <th>Time</th>
-                <th>Sensor</th>
-                <th>Source</th>
-                <th>Value</th>
-                <th>Product / Machine</th>
-              </tr>
+              <tr><th>Time</th><th>Sensor</th><th>Source</th><th>Value</th><th>Product / Machine</th></tr>
             </thead>
             <tbody>
               {readings.map((r) => (
@@ -211,18 +227,26 @@ function ConnectionBadge({ status }: { status: 'connecting' | 'connected' | 'dis
   return <span className={`conn-badge conn-${status}`}>{label}</span>;
 }
 
+const TONE_COLOR = { pass: '#3ddc97', warning: '#f7b733', fail: '#ff5d6c', neutral: '#2dd4ee' } as const;
+
 function KpiCard({
   label,
   value,
   tone,
+  history,
 }: {
   label: string;
   value: number;
   tone: 'pass' | 'warning' | 'fail' | 'neutral';
+  history: number[];
 }) {
+  const display = useCountUp(value);
   return (
     <div className={`card kpi kpi-${tone}`}>
-      <div className="kpi-value">{value}</div>
+      <div className="kpi-top">
+        <div className="kpi-value">{display}</div>
+        <Sparkline data={history} color={TONE_COLOR[tone]} />
+      </div>
       <div className="kpi-label">{label}</div>
     </div>
   );

@@ -38,5 +38,9 @@ Thumbs.db
 # Requirement/test documents contain personal data (names + ID numbers) — keep out of git
 *.docx
 
+# Stray root npm artifacts (the monorepo's package.json lives under frontend/)
+/package-lock.json
+/node_modules/
+
 .claude
 .replit
