@@ -10,6 +10,7 @@ import LiveBeacon from './LiveBeacon';
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/products', label: 'Products', end: false },
+  { to: '/quality', label: 'Quality', end: false },
   { to: '/alerts', label: 'Alerts', end: false },
   { to: '/reports', label: 'Reports', end: false },
   { to: '/simulation', label: 'Simulation', end: false },

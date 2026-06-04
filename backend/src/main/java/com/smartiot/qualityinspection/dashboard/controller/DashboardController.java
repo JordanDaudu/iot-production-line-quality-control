@@ -1,6 +1,8 @@
 package com.smartiot.qualityinspection.dashboard.controller;
 
 import com.smartiot.qualityinspection.dashboard.dto.DashboardSummaryDto;
+import com.smartiot.qualityinspection.dashboard.dto.DefectCountDto;
+import com.smartiot.qualityinspection.dashboard.dto.SpcChartDto;
 import com.smartiot.qualityinspection.dashboard.dto.TelemetryPointDto;
 import com.smartiot.qualityinspection.dashboard.service.DashboardService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,5 +34,15 @@ public class DashboardController {
     @GetMapping("/telemetry")
     public List<TelemetryPointDto> telemetry(@RequestParam(defaultValue = "500") int limit) {
         return dashboardService.getTelemetry(limit);
+    }
+
+    @GetMapping("/spc")
+    public SpcChartDto spc(@RequestParam(defaultValue = "100") int limit) {
+        return dashboardService.getSpcChart(limit);
+    }
+
+    @GetMapping("/defect-pareto")
+    public List<DefectCountDto> defectPareto() {
+        return dashboardService.getDefectPareto();
     }
 }

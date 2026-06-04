@@ -5,6 +5,7 @@ import AppLayout from '../components/layout/AppLayout';
 import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/DashboardPage';
 import ProductsPage from '../pages/ProductsPage';
+import QualityPage from '../pages/QualityPage';
 import SimulationControlPage from '../pages/SimulationControlPage';
 import AlertsPage from '../pages/AlertsPage';
 import ReportsPage from '../pages/ReportsPage';
@@ -31,6 +32,7 @@ export default function AppRoutes() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/products" element={<ProductsPage />} />
+          <Route path="/quality" element={<QualityPage />} />
           <Route path="/simulation" element={<SimulationControlPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/reports" element={<ReportsPage />} />

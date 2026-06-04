@@ -10,6 +10,30 @@ export interface TelemetryPoint {
   vibration: number | null;
 }
 
+// Mirrors the backend SpcChartDto.
+export interface SpcPoint {
+  index: number;
+  productCode: string;
+  value: number;
+  outOfControl: boolean;
+}
+
+export interface SpcChart {
+  points: SpcPoint[];
+  centerLine: number;
+  ucl: number;
+  lcl: number;
+  specLow: number;
+  specHigh: number;
+  unit: string;
+}
+
+// Mirrors the backend DefectCountDto.
+export interface DefectCount {
+  category: string;
+  count: number;
+}
+
 // Mirrors the backend dashboard summary DTO (built in a later increment).
 export interface DashboardSummary {
   passCount: number;
