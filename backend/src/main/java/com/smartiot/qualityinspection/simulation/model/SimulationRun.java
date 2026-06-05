@@ -24,6 +24,14 @@ public class SimulationRun {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * User-supplied name for this run. Unique (case-insensitive) across all runs; the
+     * uniqueness check lives in the service layer. Nullable so runs created before this
+     * field existed remain valid.
+     */
+    @Column(unique = true)
+    private String name;
+
     /** Scenario name, e.g. NORMAL_RUN, HIGH_DEFECT_RATE. */
     @Column(nullable = false)
     private String scenario;
@@ -41,7 +49,8 @@ public class SimulationRun {
         // Required by JPA.
     }
 
-    public SimulationRun(String scenario, SimulationState state, Instant startedAt) {
+    public SimulationRun(String name, String scenario, SimulationState state, Instant startedAt) {
+        this.name = name;
         this.scenario = scenario;
         this.state = state;
         this.startedAt = startedAt;
@@ -49,6 +58,14 @@ public class SimulationRun {
 
     public Long getId() {
         return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getScenario() {

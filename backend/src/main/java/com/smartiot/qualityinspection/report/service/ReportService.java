@@ -27,7 +27,7 @@ public class ReportService {
     }
 
     public QualitySummaryReportDto qualitySummary(Long batchId, Long simulationRunId, Instant from, Instant to) {
-        List<InspectionResult> results = resultRepository.search(null, batchId, simulationRunId, from, to, null);
+        List<InspectionResult> results = resultRepository.search(null, batchId, simulationRunId, null, from, to, null);
 
         long pass = countStatus(results, QualityStatus.PASS);
         long warning = countStatus(results, QualityStatus.WARNING);

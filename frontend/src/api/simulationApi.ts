@@ -1,5 +1,5 @@
 import { httpClient } from './httpClient';
-import type { SimulationStatus, FaultType } from '../types/simulation';
+import type { SimulationStatus, SimulationRunSummary, FaultType } from '../types/simulation';
 
 export interface FaultInjectionResponse {
   faultType: string;
@@ -14,8 +14,13 @@ export async function getSimulationState(): Promise<SimulationStatus> {
   return res.data;
 }
 
-export async function startSimulation(scenario = 'NORMAL_RUN'): Promise<SimulationStatus> {
-  const res = await httpClient.post<SimulationStatus>('/simulation/start', { scenario });
+export async function getSimulationRuns(): Promise<SimulationRunSummary[]> {
+  const res = await httpClient.get<SimulationRunSummary[]>('/simulation/runs');
+  return res.data;
+}
+
+export async function startSimulation(name: string, scenario = 'NORMAL_RUN'): Promise<SimulationStatus> {
+  const res = await httpClient.post<SimulationStatus>('/simulation/start', { name, scenario });
   return res.data;
 }
 

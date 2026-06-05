@@ -2,6 +2,7 @@ package com.smartiot.qualityinspection.simulation.service;
 
 import com.smartiot.qualityinspection.common.enums.SimulationState;
 import com.smartiot.qualityinspection.common.exception.ValidationException;
+import com.smartiot.qualityinspection.simulation.dto.SimulationRunSummaryDto;
 import com.smartiot.qualityinspection.simulation.dto.SimulationStatusDto;
 import com.smartiot.qualityinspection.simulation.model.Batch;
 import com.smartiot.qualityinspection.simulation.model.SimulationRun;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -43,6 +45,7 @@ public class SimulationService {
     // In-memory live context for the running simulation.
     private volatile SimulationState state = SimulationState.IDLE;
     private volatile Long currentRunId;
+    private volatile String currentRunName;
     private volatile Long currentBatchId;
     private volatile String currentBatchCode;
     private volatile String scenario;
@@ -58,36 +61,45 @@ public class SimulationService {
         this.faultInjectionService = faultInjectionService;
     }
 
-    public synchronized SimulationStatusDto start(String requestedScenario) {
+    public synchronized SimulationStatusDto start(String requestedName, String requestedScenario) {
         if (state == SimulationState.RUNNING) {
             throw new ValidationException("Simulation is already running.");
         }
 
         if (state == SimulationState.PAUSED) {
-            // Resume the existing run.
+            // Resume the existing run. The name is fixed at creation, so it is ignored here.
             state = SimulationState.RUNNING;
             updateRunState(currentRunId, SimulationState.RUNNING, null);
             log.info("Simulation resumed (run {})", currentRunId);
             return broadcastStatus();
         }
 
-        // Start a brand new run (from IDLE or STOPPED).
+        // Start a brand new run (from IDLE or STOPPED): a unique name is required.
+        String name = requestedName == null ? "" : requestedName.trim();
+        if (name.isEmpty()) {
+            throw new ValidationException("A run name is required.");
+        }
+        if (runRepository.existsByNameIgnoreCase(name)) {
+            throw new ValidationException("A simulation named '" + name + "' already exists. Choose a different name.");
+        }
+
         String scenarioName = (requestedScenario == null || requestedScenario.isBlank())
                 ? DEFAULT_SCENARIO : requestedScenario;
         Instant now = Instant.now();
 
-        SimulationRun run = runRepository.save(new SimulationRun(scenarioName, SimulationState.RUNNING, now));
+        SimulationRun run = runRepository.save(new SimulationRun(name, scenarioName, SimulationState.RUNNING, now));
         String batchCode = String.format("BATCH%03d", run.getId());
         Batch batch = batchRepository.save(new Batch(batchCode, run.getId(), now));
 
         this.currentRunId = run.getId();
+        this.currentRunName = name;
         this.currentBatchId = batch.getId();
         this.currentBatchCode = batchCode;
         this.scenario = scenarioName;
         this.productSequence.set(0);
         this.state = SimulationState.RUNNING;
 
-        log.info("Simulation started (run {}, batch {}, scenario {})", currentRunId, batchCode, scenarioName);
+        log.info("Simulation started (run {} '{}', batch {}, scenario {})", currentRunId, name, batchCode, scenarioName);
         return broadcastStatus();
     }
 
@@ -115,6 +127,7 @@ public class SimulationService {
         // Reset clears the live runtime context only; persisted history remains.
         state = SimulationState.IDLE;
         currentRunId = null;
+        currentRunName = null;
         currentBatchId = null;
         currentBatchCode = null;
         scenario = null;
@@ -125,7 +138,19 @@ public class SimulationService {
     }
 
     public SimulationStatusDto getStatus() {
-        return new SimulationStatusDto(currentRunId, scenario, state);
+        return new SimulationStatusDto(currentRunId, currentRunName, scenario, state);
+    }
+
+    /** All persisted runs, most recent first. Used by the frontend to pre-check run names. */
+    public List<SimulationRunSummaryDto> listRuns() {
+        return runRepository.findAllByOrderByStartedAtDesc().stream()
+                .map(run -> new SimulationRunSummaryDto(
+                        run.getId(),
+                        run.getName(),
+                        run.getScenario(),
+                        run.getState(),
+                        run.getStartedAt() == null ? null : run.getStartedAt().toString()))
+                .toList();
     }
 
     // ----- Accessors used by the sensor simulators -----

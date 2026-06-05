@@ -1,20 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { canManageAlerts } from '../auth/permissions';
 import { useSubscription } from '../hooks/useSubscription';
 import { Topics } from '../websocket/eventTypes';
 import { getAlerts, acknowledgeAlert, resolveAlert } from '../api/alertsApi';
 import type { Alert, AlertStatus } from '../types/alert';
 
-const MANAGE_ROLES = ['MAINTENANCE_TECHNICIAN', 'ADMINISTRATOR'];
 const STATUS_OPTIONS: (AlertStatus | 'ALL')[] = ['ALL', 'ACTIVE', 'ACKNOWLEDGED', 'RESOLVED'];
 
 /**
- * Alert history and lifecycle (FR-24). Maintenance Technicians and Administrators can
- * acknowledge and resolve alerts; the backend enforces this regardless of the UI.
+ * Alert history and lifecycle (FR-24). Quality Managers, Maintenance Technicians and
+ * Administrators can acknowledge and resolve alerts; Operators are view-only. The backend
+ * enforces this regardless of the UI.
  */
 export default function AlertsPage() {
   const { user } = useAuth();
-  const canManage = !!user && MANAGE_ROLES.includes(user.role);
+  const canManage = !!user && canManageAlerts(user.role);
   const [filter, setFilter] = useState<AlertStatus | 'ALL'>('ACTIVE');
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -59,7 +60,7 @@ export default function AlertsPage() {
         </label>
       </div>
 
-      {!canManage && <p className="muted">Signed in as {user?.role}. Acknowledge/resolve require Maintenance Technician or Administrator.</p>}
+      {!canManage && <p className="muted">Signed in as {user?.role}. Acknowledge/resolve require Quality Manager, Maintenance Technician or Administrator.</p>}
       {error && <div className="error-text">{error}</div>}
 
       <section className="card">

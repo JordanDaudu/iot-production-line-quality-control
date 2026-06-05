@@ -51,8 +51,9 @@ public class ProductQueryService {
 
     /** Filtered list of inspected products (FR-14). */
     public List<InspectionResultDto> search(QualityStatus status, Long batchId, Long simulationRunId,
-                                            Instant from, Instant to, SensorType sensorType) {
-        return inspectionResultRepository.search(status, batchId, simulationRunId, from, to, sensorType)
+                                            String runName, Instant from, Instant to, SensorType sensorType) {
+        String trimmedRunName = (runName == null || runName.isBlank()) ? null : runName.trim();
+        return inspectionResultRepository.search(status, batchId, simulationRunId, trimmedRunName, from, to, sensorType)
                 .stream().map(InspectionResultDto::from).toList();
     }
 
@@ -63,8 +64,9 @@ public class ProductQueryService {
 
         String batchCode = batchRepository.findById(product.getBatchId())
                 .map(Batch::getCode).orElse(null);
-        String scenario = simulationRunRepository.findById(product.getSimulationRunId())
-                .map(SimulationRun::getScenario).orElse(null);
+        SimulationRun run = simulationRunRepository.findById(product.getSimulationRunId()).orElse(null);
+        String scenario = run != null ? run.getScenario() : null;
+        String runName = run != null ? run.getName() : null;
 
         List<SensorReadingDto> readings = sensorReadingRepository
                 .findByProductCodeOrderByTimestampAsc(productCode)
@@ -81,6 +83,7 @@ public class ProductQueryService {
                 product.getBatchId(),
                 batchCode,
                 product.getSimulationRunId(),
+                runName,
                 scenario,
                 product.getCreatedAt() != null ? product.getCreatedAt().toString() : null,
                 result,

@@ -2,6 +2,7 @@ package com.smartiot.qualityinspection.simulation.controller;
 
 import com.smartiot.qualityinspection.simulation.dto.FaultInjectionRequest;
 import com.smartiot.qualityinspection.simulation.dto.FaultInjectionResponse;
+import com.smartiot.qualityinspection.simulation.dto.SimulationRunSummaryDto;
 import com.smartiot.qualityinspection.simulation.dto.SimulationStatusDto;
 import com.smartiot.qualityinspection.simulation.dto.StartSimulationRequest;
 import com.smartiot.qualityinspection.simulation.service.FaultInjectionService;
@@ -14,10 +15,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 /**
  * Simulation control endpoints. Reading the state is open to any authenticated user;
- * controlling the simulation requires an Operator or Administrator role (enforced
- * server-side per NFR-11). Invalid state transitions return HTTP 400.
+ * controlling the simulation (and injecting faults) requires the Administrator role
+ * (enforced server-side per NFR-11). Invalid state transitions return HTTP 400.
  */
 @RestController
 @RequestMapping("/api/simulation")
@@ -37,27 +40,33 @@ public class SimulationController {
         return simulationService.getStatus();
     }
 
+    @GetMapping("/runs")
+    public List<SimulationRunSummaryDto> runs() {
+        return simulationService.listRuns();
+    }
+
     @PostMapping("/start")
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMINISTRATOR')")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public SimulationStatusDto start(@RequestBody(required = false) StartSimulationRequest request) {
+        String name = request != null ? request.name() : null;
         String scenario = request != null ? request.scenario() : null;
-        return simulationService.start(scenario);
+        return simulationService.start(name, scenario);
     }
 
     @PostMapping("/pause")
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMINISTRATOR')")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public SimulationStatusDto pause() {
         return simulationService.pause();
     }
 
     @PostMapping("/stop")
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMINISTRATOR')")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public SimulationStatusDto stop() {
         return simulationService.stop();
     }
 
     @PostMapping("/reset")
-    @PreAuthorize("hasAnyRole('OPERATOR', 'ADMINISTRATOR')")
+    @PreAuthorize("hasRole('ADMINISTRATOR')")
     public SimulationStatusDto reset() {
         return simulationService.reset();
     }

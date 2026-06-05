@@ -55,17 +55,29 @@ class SimulationServiceTest {
     @Test
     void startMovesToRunning() {
         stubSaves();
-        var status = service.start("NORMAL_RUN");
+        var status = service.start("Morning run", "NORMAL_RUN");
         assertEquals(SimulationState.RUNNING, status.state());
         assertEquals(1L, status.simulationRunId());
+        assertEquals("Morning run", status.name());
         verify(broadcaster).broadcastSimulationState(status);
     }
 
     @Test
     void startWhileRunningIsRejected() {
         stubSaves();
-        service.start("NORMAL_RUN");
-        assertThrows(ValidationException.class, () -> service.start("NORMAL_RUN"));
+        service.start("Morning run", "NORMAL_RUN");
+        assertThrows(ValidationException.class, () -> service.start("Another run", "NORMAL_RUN"));
+    }
+
+    @Test
+    void startWithDuplicateNameIsRejected() {
+        when(runRepository.existsByNameIgnoreCase("Morning run")).thenReturn(true);
+        assertThrows(ValidationException.class, () -> service.start("Morning run", "NORMAL_RUN"));
+    }
+
+    @Test
+    void startWithBlankNameIsRejected() {
+        assertThrows(ValidationException.class, () -> service.start("   ", "NORMAL_RUN"));
     }
 
     @Test

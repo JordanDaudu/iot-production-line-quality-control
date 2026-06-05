@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useAuth } from '../context/AuthContext';
+import { canInjectFaults } from '../auth/permissions';
 import { useStompContext } from '../context/StompContext';
 import { useSubscription } from '../hooks/useSubscription';
 import { useCountUp } from '../hooks/useCountUp';
@@ -9,6 +11,7 @@ import { getSimulationState } from '../api/simulationApi';
 import { Topics } from '../websocket/eventTypes';
 import Sparkline from '../components/dashboard/Sparkline';
 import Gauge from '../components/dashboard/Gauge';
+import FaultInjectionPanel from '../components/dashboard/FaultInjectionPanel';
 import type { SensorReading } from '../types/sensor';
 import type { SimulationStatus, SimulationState } from '../types/simulation';
 import type { DashboardSummary } from '../types/dashboard';
@@ -23,6 +26,7 @@ const HIST = 24;
  */
 export default function DashboardPage() {
   const { status } = useStompContext();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [simulation, setSimulation] = useState<SimulationStatus | null>(null);
@@ -158,6 +162,8 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
+      {user && canInjectFaults(user.role) && <FaultInjectionPanel simState={simState} />}
 
       <section className="card">
         <h3 className="card-title">Latest inspection results</h3>

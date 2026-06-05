@@ -8,6 +8,7 @@ export interface ProductFilters {
   status?: QualityStatus;
   batchId?: number;
   simulationRunId?: number;
+  runName?: string;
   from?: string;
   to?: string;
   sensorType?: SensorType;
@@ -18,6 +19,7 @@ export async function getProducts(filters: ProductFilters = {}): Promise<Inspect
   if (filters.status) params.status = filters.status;
   if (filters.batchId != null) params.batchId = String(filters.batchId);
   if (filters.simulationRunId != null) params.simulationRunId = String(filters.simulationRunId);
+  if (filters.runName) params.runName = filters.runName;
   if (filters.from) params.from = filters.from;
   if (filters.to) params.to = filters.to;
   if (filters.sensorType) params.sensorType = filters.sensorType;

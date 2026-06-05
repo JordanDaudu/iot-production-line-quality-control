@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { canAccessRoute } from '../../auth/permissions';
 import { useSubscription } from '../../hooks/useSubscription';
 import { Topics } from '../../websocket/eventTypes';
 import { getSimulationState } from '../../api/simulationApi';
@@ -52,7 +53,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
       <div className="app-body">
         <nav className="app-nav">
-          {NAV_ITEMS.map((item) => (
+          {NAV_ITEMS.filter((item) => !user || canAccessRoute(user.role, item.to)).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

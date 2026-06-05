@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { canEditThresholds } from '../auth/permissions';
 import { getThresholds, updateThreshold } from '../api/thresholdsApi';
 import { getUsers, updateUserRole, type UserAccount } from '../api/usersApi';
 import type { Threshold } from '../types/threshold';
@@ -14,7 +15,7 @@ const ROLES: UserRole[] = ['QUALITY_MANAGER', 'OPERATOR', 'MAINTENANCE_TECHNICIA
  */
 export default function SettingsPage() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMINISTRATOR';
+  const isAdmin = !!user && canEditThresholds(user.role);
   const [drafts, setDrafts] = useState<Threshold[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

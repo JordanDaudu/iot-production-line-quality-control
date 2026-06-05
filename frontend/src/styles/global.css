@@ -88,6 +88,56 @@ input, select { font-family: var(--body); }
   background: var(--cyan);
   vertical-align: middle;
 }
+.card-head { display: flex; align-items: center; justify-content: space-between; }
+.card-head .card-title { margin-bottom: 0.4rem; }
+
+/* ===== Info tooltip ===== */
+.card-title-row { display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.7rem; }
+.card-title-row .card-title { margin: 0; }
+.info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  border: 1px solid var(--border-bright);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-family: var(--body);
+  font-size: 0.62rem;
+  font-weight: 600;
+  font-style: italic;
+  cursor: help;
+  user-select: none;
+}
+.info-tip:hover, .info-tip:focus-visible { color: var(--cyan); border-color: var(--cyan); outline: none; }
+.info-tip-bubble {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: 280px;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(20, 35, 60, 0.13);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.45;
+  letter-spacing: normal;
+  text-transform: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-3px);
+  transition: opacity 0.15s, transform 0.15s, visibility 0.15s;
+}
+.info-tip:hover .info-tip-bubble,
+.info-tip:focus-visible .info-tip-bubble { opacity: 1; visibility: visible; transform: translateY(0); }
+.admin-tag { color: var(--warning); border-color: var(--warning); background: rgba(247, 183, 51, 0.12); text-transform: uppercase; letter-spacing: 0.08em; }
 
 /* ===== Login ===== */
 .login-screen { display: grid; place-items: center; min-height: 100vh; padding: 1rem; }
@@ -190,6 +240,12 @@ input, select { font-family: var(--body); }
 /* ===== Dashboard grid ===== */
 .dash-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 0.85rem; margin-bottom: 0.9rem; }
 @media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+
+/* Keep a detail panel in view while a long sibling list scrolls. align-self:start stops
+   the grid item stretching to full row height, which is what gives sticky room to move.
+   top clears the sticky app-header; max-height + overflow keep a tall panel on-screen. */
+.detail-sticky { position: sticky; top: 3.5rem; align-self: start; max-height: calc(100vh - 4.5rem); overflow: auto; }
+@media (max-width: 900px) { .detail-sticky { position: static; max-height: none; } }
 
 /* ===== Tables ===== */
 .readings-table, .data-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }

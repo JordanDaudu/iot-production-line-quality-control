@@ -18,7 +18,8 @@ import java.util.List;
 
 /**
  * Alert listing and lifecycle. Listing is open to authenticated users; acknowledging and
- * resolving require a Maintenance Technician or Administrator role (FR-24 / NFR-11).
+ * resolving require a Quality Manager, Maintenance Technician or Administrator role
+ * (Operators are view-only) (FR-24 / NFR-11).
  */
 @RestController
 @RequestMapping("/api/alerts")
@@ -36,7 +37,7 @@ public class AlertController {
     }
 
     @PostMapping("/{id}/acknowledge")
-    @PreAuthorize("hasAnyRole('MAINTENANCE_TECHNICIAN', 'ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('QUALITY_MANAGER', 'MAINTENANCE_TECHNICIAN', 'ADMINISTRATOR')")
     public AlertDto acknowledge(@PathVariable Long id,
                                 @RequestBody(required = false) AcknowledgeAlertRequest request,
                                 Authentication authentication) {
@@ -45,7 +46,7 @@ public class AlertController {
     }
 
     @PostMapping("/{id}/resolve")
-    @PreAuthorize("hasAnyRole('MAINTENANCE_TECHNICIAN', 'ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('QUALITY_MANAGER', 'MAINTENANCE_TECHNICIAN', 'ADMINISTRATOR')")
     public AlertDto resolve(@PathVariable Long id, Authentication authentication) {
         return alertService.resolve(id, authentication.getName());
     }

@@ -61,6 +61,48 @@ class AccessControlIntegrationTest {
     }
 
     @Test
+    @WithMockUser(roles = "OPERATOR")
+    void operatorCannotControlSimulation() throws Exception {
+        mockMvc.perform(post("/api/simulation/start")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "OPERATOR")
+    void operatorCannotManageAlerts() throws Exception {
+        mockMvc.perform(post("/api/alerts/1/acknowledge")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "QUALITY_MANAGER")
+    void qualityManagerCanManageAlerts() throws Exception {
+        // Authorization passes (not 403); the alert does not exist, so the service 404s.
+        mockMvc.perform(post("/api/alerts/999999/acknowledge")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "MAINTENANCE_TECHNICIAN")
+    void maintenanceTechnicianCannotViewQualityAnalytics() throws Exception {
+        mockMvc.perform(get("/api/dashboard/spc"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "OPERATOR")
+    void operatorCanViewQualityAnalytics() throws Exception {
+        mockMvc.perform(get("/api/dashboard/spc"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     @WithMockUser(roles = "ADMINISTRATOR")
     void malformedJsonReturnsBadRequest() throws Exception {
         mockMvc.perform(put("/api/thresholds/WEIGHT")

@@ -16,6 +16,7 @@ public record ProductDetailDto(
         Long batchId,
         String batchCode,
         Long simulationRunId,
+        String simulationRunName,
         String scenario,
         String createdAt,
         InspectionResultDto result,

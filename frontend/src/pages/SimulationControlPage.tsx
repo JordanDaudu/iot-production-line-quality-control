@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { canControlSimulation } from '../auth/permissions';
 import { useSubscription } from '../hooks/useSubscription';
 import { Topics } from '../websocket/eventTypes';
 import {
   getSimulationState,
+  getSimulationRuns,
   startSimulation,
   pauseSimulation,
   stopSimulation,
   resetSimulation,
-  injectFault,
 } from '../api/simulationApi';
-import type { SimulationStatus, SimulationState, FaultType } from '../types/simulation';
-
-const CONTROL_ROLES = ['OPERATOR', 'ADMINISTRATOR'];
+import type { SimulationStatus, SimulationState } from '../types/simulation';
 
 const SCENARIOS = [
   'NORMAL_RUN',
@@ -23,28 +22,28 @@ const SCENARIOS = [
   'MIXED_FAULT_DEMO',
 ];
 
-const FAULTS: { type: FaultType; label: string }[] = [
-  { type: 'OVERWEIGHT_PRODUCT', label: 'Overweight product' },
-  { type: 'VISUAL_DEFECT', label: 'Visual defect (crack)' },
-  { type: 'TEMPERATURE_SPIKE', label: 'Temperature spike' },
-  { type: 'VIBRATION_SPIKE', label: 'Vibration spike' },
-  { type: 'SENSOR_DISCONNECT', label: 'Disconnect vibration sensor' },
-];
-
 export default function SimulationControlPage() {
   const { user } = useAuth();
-  const canControl = !!user && CONTROL_ROLES.includes(user.role);
-  const isAdmin = user?.role === 'ADMINISTRATOR';
+  const canControl = !!user && canControlSimulation(user.role);
 
   const [status, setStatus] = useState<SimulationStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [faultMsg, setFaultMsg] = useState<string | null>(null);
   const [scenario, setScenario] = useState('NORMAL_RUN');
+  const [name, setName] = useState('');
+  // Lower-cased names of existing runs, for an instant client-side uniqueness check.
+  const [takenNames, setTakenNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     getSimulationState().then(setStatus).catch(() => setError('Could not load simulation state.'));
+    refreshRunNames();
   }, []);
+
+  function refreshRunNames() {
+    getSimulationRuns()
+      .then((runs) => setTakenNames(new Set(runs.map((r) => (r.name ?? '').trim().toLowerCase()).filter(Boolean))))
+      .catch(() => undefined);
+  }
 
   // Stay in sync with control actions from any client.
   useSubscription(Topics.SIMULATION_STATE, (message) => {
@@ -65,16 +64,21 @@ export default function SimulationControlPage() {
   }
 
   const state: SimulationState = status?.state ?? 'IDLE';
+  // Starting from IDLE/STOPPED creates a new run (name required); from PAUSED it resumes.
+  const isNewRun = state === 'IDLE' || state === 'STOPPED';
+  const trimmedName = name.trim();
+  const nameError: string | null = !isNewRun
+    ? null
+    : trimmedName === ''
+      ? 'A run name is required.'
+      : takenNames.has(trimmedName.toLowerCase())
+        ? `A run named "${trimmedName}" already exists. Choose a different name.`
+        : null;
 
-  async function fire(faultType: FaultType) {
-    setFaultMsg(null);
-    try {
-      const res = await injectFault(faultType);
-      setFaultMsg(res.message);
-    } catch (e: unknown) {
-      const s = (e as { response?: { status?: number } }).response?.status;
-      setFaultMsg(s === 403 ? 'Administrator role required for fault injection.' : 'Fault injection failed.');
-    }
+  async function handleStart() {
+    await run(() => startSimulation(isNewRun ? trimmedName : '', scenario));
+    setName('');
+    refreshRunNames();
   }
 
   return (
@@ -90,6 +94,10 @@ export default function SimulationControlPage() {
           <strong>{status?.simulationRunId ?? '—'}</strong>
         </div>
         <div>
+          <span className="muted">Name</span>
+          <strong>{status?.name ?? '—'}</strong>
+        </div>
+        <div>
           <span className="muted">Scenario</span>
           <strong>{status?.scenario ?? '—'}</strong>
         </div>
@@ -101,24 +109,40 @@ export default function SimulationControlPage() {
 
       {!canControl && (
         <p className="muted">
-          You are signed in as <strong>{user?.role}</strong>. Only Operator and Administrator
-          roles can control the simulation.
+          You are signed in as <strong>{user?.role}</strong>. Only the Administrator role can
+          control the simulation.
         </p>
       )}
 
-      <label className="inline-filter">
-        Scenario
-        <select
-          value={scenario}
-          disabled={!canControl || state === 'RUNNING' || state === 'PAUSED'}
-          onChange={(e) => setScenario(e.target.value)}
-        >
-          {SCENARIOS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-      </label>
+      <div className="filter-row">
+        <label>
+          Run name
+          <input
+            value={name}
+            disabled={!canControl || !isNewRun}
+            placeholder="e.g. Line A morning batch"
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        <label>
+          Scenario
+          <select
+            value={scenario}
+            disabled={!canControl || state === 'RUNNING' || state === 'PAUSED'}
+            onChange={(e) => setScenario(e.target.value)}
+          >
+            {SCENARIOS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </label>
+      </div>
+
+      {isNewRun && name.trim() !== '' && nameError && <div className="error-text">{nameError}</div>}
 
       <div className="button-row">
-        <button disabled={!canControl || busy || state === 'RUNNING'} onClick={() => run(() => startSimulation(scenario))}>
+        <button
+          disabled={!canControl || busy || state === 'RUNNING' || (isNewRun && nameError !== null)}
+          onClick={handleStart}
+        >
           {state === 'PAUSED' ? 'Resume' : 'Start'}
         </button>
         <button disabled={!canControl || busy || state !== 'RUNNING'} onClick={() => run(pauseSimulation)}>
@@ -138,24 +162,10 @@ export default function SimulationControlPage() {
       {error && <div className="error-text">{error}</div>}
 
       <p className="muted">
-        Reset clears the live runtime state and returns to IDLE; persisted history is kept.
-        Watch the dashboard to see readings stream while the simulation runs.
+        Each new run needs a unique name (case-insensitive). Reset clears the live runtime
+        state and returns to IDLE; persisted history is kept. Watch the dashboard to see
+        readings stream while the simulation runs.
       </p>
-
-      {isAdmin && (
-        <section className="card fault-panel">
-          <h3 className="card-title">Fault injection (Administrator)</h3>
-          <p className="muted">Inject a simulated fault on the next production cycle. Start the simulation first.</p>
-          <div className="button-row">
-            {FAULTS.map((f) => (
-              <button key={f.type} className="secondary" disabled={state !== 'RUNNING'} onClick={() => fire(f.type)}>
-                {f.label}
-              </button>
-            ))}
-          </div>
-          {faultMsg && <div className="ok-text">{faultMsg}</div>}
-        </section>
-      )}
     </div>
   );
 }

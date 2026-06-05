@@ -38,7 +38,7 @@ export default function QualityPage() {
   let running = 0;
   const paretoData = pareto.map((d) => {
     running += d.count;
-    return { category: d.category, count: d.count, cumulative: total ? Math.round((running / total) * 100) : 0 };
+    return { category: prettifyDefect(d.category), count: d.count, cumulative: total ? Math.round((running / total) * 100) : 0 };
   });
 
   return (
@@ -81,7 +81,17 @@ export default function QualityPage() {
       </section>
 
       <section className="card">
-        <h3 className="card-title">Defect Pareto</h3>
+        <div className="card-title-row">
+          <h3 className="card-title">Defect Pareto</h3>
+          <span className="info-tip" tabIndex={0} role="note" aria-label="What is a defect Pareto chart?">
+            i
+            <span className="info-tip-bubble" role="tooltip">
+              A Pareto chart ranks defect categories from most to least frequent (bars), with a line
+              tracking the cumulative share of all defects. Categories to the left of where the line
+              crosses ~80% are the “vital few” — fixing those first yields the biggest quality gain.
+            </span>
+          </span>
+        </div>
         {paretoData.length > 0 ? (
           <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
@@ -103,6 +113,12 @@ export default function QualityPage() {
       </section>
     </div>
   );
+}
+
+/** Turns raw defect codes like MISSING_LABEL into readable labels like "Missing label". */
+function prettifyDefect(code: string): string {
+  const words = code.replace(/_/g, ' ').toLowerCase().trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 function spcDomain(spc: SpcChart): [number, number] {

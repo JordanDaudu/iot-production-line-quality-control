@@ -35,10 +35,11 @@ public class ProductController {
             @RequestParam(required = false) QualityStatus status,
             @RequestParam(required = false) Long batchId,
             @RequestParam(required = false) Long simulationRunId,
+            @RequestParam(required = false) String runName,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
             @RequestParam(required = false) SensorType sensorType) {
-        return productQueryService.search(status, batchId, simulationRunId,
+        return productQueryService.search(status, batchId, simulationRunId, runName,
                 parseInstant(from), parseInstant(to), sensorType);
     }
 

@@ -13,11 +13,12 @@ interface FilterForm {
   sensorType: SensorType | 'ALL';
   batchId: string;
   simulationRunId: string;
+  runName: string;
   from: string;
   to: string;
 }
 
-const EMPTY_FILTERS: FilterForm = { status: 'ALL', sensorType: 'ALL', batchId: '', simulationRunId: '', from: '', to: '' };
+const EMPTY_FILTERS: FilterForm = { status: 'ALL', sensorType: 'ALL', batchId: '', simulationRunId: '', runName: '', from: '', to: '' };
 
 function toIso(localValue: string): string | undefined {
   if (!localValue) return undefined;
@@ -44,6 +45,7 @@ export default function ProductsPage() {
     if (active.sensorType !== 'ALL') query.sensorType = active.sensorType;
     if (active.batchId.trim()) query.batchId = Number(active.batchId);
     if (active.simulationRunId.trim()) query.simulationRunId = Number(active.simulationRunId);
+    if (active.runName.trim()) query.runName = active.runName.trim();
     if (toIso(active.from)) query.from = toIso(active.from);
     if (toIso(active.to)) query.to = toIso(active.to);
     getProducts(query).then(setProducts).catch(() => setProducts([]));
@@ -124,6 +126,7 @@ export default function ProductsPage() {
             </select>
           </label>
           <label>Batch ID<input className="num-input" value={filters.batchId} onChange={(e) => setField('batchId', e.target.value)} /></label>
+          <label>Run name<input value={filters.runName} onChange={(e) => setField('runName', e.target.value)} placeholder="e.g. Line A morning batch" /></label>
           <label>Run ID<input className="num-input" value={filters.simulationRunId} onChange={(e) => setField('simulationRunId', e.target.value)} /></label>
           <label>From<input type="datetime-local" value={filters.from} onChange={(e) => setField('from', e.target.value)} /></label>
           <label>To<input type="datetime-local" value={filters.to} onChange={(e) => setField('to', e.target.value)} /></label>
@@ -160,7 +163,7 @@ export default function ProductsPage() {
           )}
         </section>
 
-        <section className="card">
+        <section className="card detail-sticky">
           <h3 className="card-title">Product detail</h3>
           {!detail ? (
             <p className="muted">Select a product or search a Product ID.</p>
@@ -179,7 +182,8 @@ function ProductDetailView({ detail }: { detail: ProductDetail }) {
       <div className="detail-meta">
         <span><span className="muted">Product</span><strong>{detail.productCode}</strong></span>
         <span><span className="muted">Batch</span><strong>{detail.batchCode ?? detail.batchId}</strong></span>
-        <span><span className="muted">Run</span><strong>{detail.simulationRunId}</strong></span>
+        <span><span className="muted">Run name</span><strong>{detail.simulationRunName ?? '—'}</strong></span>
+        <span><span className="muted">Run ID</span><strong>{detail.simulationRunId}</strong></span>
         <span><span className="muted">Scenario</span><strong>{detail.scenario ?? '—'}</strong></span>
       </div>
 

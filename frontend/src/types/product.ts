@@ -17,6 +17,7 @@ export interface ProductDetail {
   batchId: number;
   batchCode: string | null;
   simulationRunId: number;
+  simulationRunName: string | null;
   scenario: string | null;
   createdAt: string;
   result: InspectionResult | null;

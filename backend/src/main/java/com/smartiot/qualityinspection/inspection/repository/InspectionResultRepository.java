@@ -28,6 +28,9 @@ public interface InspectionResultRepository extends JpaRepository<InspectionResu
             WHERE (:status IS NULL OR r.status = :status)
               AND (:batchId IS NULL OR r.batchId = :batchId)
               AND (:simulationRunId IS NULL OR r.simulationRunId = :simulationRunId)
+              AND (:runName IS NULL OR r.simulationRunId IN (
+                    SELECT run.id FROM SimulationRun run
+                    WHERE LOWER(run.name) LIKE LOWER(CONCAT('%', :runName, '%'))))
               AND (:from IS NULL OR r.createdAt >= :from)
               AND (:to IS NULL OR r.createdAt <= :to)
               AND (:sensorType IS NULL OR EXISTS (
@@ -38,6 +41,7 @@ public interface InspectionResultRepository extends JpaRepository<InspectionResu
     List<InspectionResult> search(@Param("status") QualityStatus status,
                                   @Param("batchId") Long batchId,
                                   @Param("simulationRunId") Long simulationRunId,
+                                  @Param("runName") String runName,
                                   @Param("from") Instant from,
                                   @Param("to") Instant to,
                                   @Param("sensorType") SensorType sensorType);
