@@ -6,8 +6,10 @@ import axios from 'axios';
 const STORAGE_KEY = 'smartiot.basicAuth';
 let basicAuth: string | null = sessionStorage.getItem(STORAGE_KEY);
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+
 export const httpClient = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
 });
 
 httpClient.interceptors.request.use((config) => {
