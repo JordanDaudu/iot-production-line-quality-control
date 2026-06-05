@@ -16,7 +16,7 @@ public class CorsConfig {
 
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "https://YOUR-FRONTEND-NAME.onrender.com"
+                "https://iot-production-line-quality-control.onrender.com/"
         ));
 
         config.setAllowedMethods(List.of(
