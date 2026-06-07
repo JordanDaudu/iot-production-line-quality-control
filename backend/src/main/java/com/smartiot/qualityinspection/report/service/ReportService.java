@@ -3,6 +3,7 @@ package com.smartiot.qualityinspection.report.service;
 import com.smartiot.qualityinspection.common.enums.QualityStatus;
 import com.smartiot.qualityinspection.inspection.model.InspectionResult;
 import com.smartiot.qualityinspection.inspection.repository.InspectionResultRepository;
+import com.smartiot.qualityinspection.inspection.repository.InspectionResultSpecifications;
 import com.smartiot.qualityinspection.report.dto.QualitySummaryReportDto;
 import com.smartiot.qualityinspection.report.dto.QualitySummaryReportDto.RunBreakdown;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,8 @@ public class ReportService {
     }
 
     public QualitySummaryReportDto qualitySummary(Long batchId, Long simulationRunId, Instant from, Instant to) {
-        List<InspectionResult> results = resultRepository.search(null, batchId, simulationRunId, null, from, to, null);
+        List<InspectionResult> results = resultRepository.findAll(
+                InspectionResultSpecifications.filter(null, batchId, simulationRunId, null, from, to, null));
 
         long pass = countStatus(results, QualityStatus.PASS);
         long warning = countStatus(results, QualityStatus.WARNING);

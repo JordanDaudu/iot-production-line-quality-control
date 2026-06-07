@@ -6,7 +6,9 @@ import com.smartiot.qualityinspection.common.enums.QualityStatus;
 import com.smartiot.qualityinspection.common.enums.SensorType;
 import com.smartiot.qualityinspection.common.exception.ResourceNotFoundException;
 import com.smartiot.qualityinspection.inspection.dto.InspectionResultDto;
+import com.smartiot.qualityinspection.inspection.model.InspectionResult;
 import com.smartiot.qualityinspection.inspection.repository.InspectionResultRepository;
+import com.smartiot.qualityinspection.inspection.repository.InspectionResultSpecifications;
 import com.smartiot.qualityinspection.product.dto.ProductDetailDto;
 import com.smartiot.qualityinspection.sensor.dto.SensorReadingDto;
 import com.smartiot.qualityinspection.sensor.repository.SensorReadingRepository;
@@ -16,6 +18,8 @@ import com.smartiot.qualityinspection.simulation.model.SimulationRun;
 import com.smartiot.qualityinspection.simulation.repository.BatchRepository;
 import com.smartiot.qualityinspection.simulation.repository.ProductRepository;
 import com.smartiot.qualityinspection.simulation.repository.SimulationRunRepository;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -49,11 +53,18 @@ public class ProductQueryService {
         this.alertRepository = alertRepository;
     }
 
-    /** Filtered list of inspected products (FR-14). */
+    /**
+     * Filtered list of inspected products (FR-14). Any null filter is ignored, so callers can
+     * combine filters freely. Built as a JPA Specification so unset filters produce no SQL
+     * parameter at all — this avoids PostgreSQL "could not determine data type" / "lower(bytea)"
+     * errors that arise when null parameters appear in a static "(:param IS NULL OR ...)" query.
+     */
     public List<InspectionResultDto> search(QualityStatus status, Long batchId, Long simulationRunId,
                                             String runName, Instant from, Instant to, SensorType sensorType) {
-        String trimmedRunName = (runName == null || runName.isBlank()) ? null : runName.trim();
-        return inspectionResultRepository.search(status, batchId, simulationRunId, trimmedRunName, from, to, sensorType)
+        Specification<InspectionResult> spec = InspectionResultSpecifications.filter(
+                status, batchId, simulationRunId, runName, from, to, sensorType);
+
+        return inspectionResultRepository.findAll(spec, Sort.by(Sort.Direction.DESC, "createdAt"))
                 .stream().map(InspectionResultDto::from).toList();
     }
 
