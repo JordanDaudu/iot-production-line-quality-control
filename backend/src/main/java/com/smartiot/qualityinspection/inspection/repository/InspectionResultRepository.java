@@ -30,7 +30,7 @@ public interface InspectionResultRepository extends JpaRepository<InspectionResu
               AND (:simulationRunId IS NULL OR r.simulationRunId = :simulationRunId)
               AND (:runName IS NULL OR r.simulationRunId IN (
                     SELECT run.id FROM SimulationRun run
-                    WHERE LOWER(run.name) LIKE LOWER(CONCAT('%', :runName, '%'))))
+                    WHERE LOWER(run.name) LIKE LOWER(CONCAT('%', CAST(:runName AS string), '%'))))
               AND (:from IS NULL OR r.createdAt >= :from)
               AND (:to IS NULL OR r.createdAt <= :to)
               AND (:sensorType IS NULL OR EXISTS (
