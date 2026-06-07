@@ -55,8 +55,21 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneric(Exception ex, HttpServletRequest request) {
+        // SockJS/WebSocket transport requests (under /ws) stream non-JSON content such as
+        // text/event-stream. Writing an ApiError JSON body into those responses fails with
+        // HttpMessageNotWritableException, so return a body-less status and let the WebSocket
+        // layer handle its own transport errors. No message converter is invoked this way.
+        if (isWebSocketTransport(request)) {
+            log.debug("Transport error on {} {}: {}", request.getMethod(), request.getRequestURI(), ex.toString());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
         log.error("Unhandled exception on {} {}", request.getMethod(), request.getRequestURI(), ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred.", request);
+    }
+
+    private static boolean isWebSocketTransport(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri != null && uri.startsWith("/ws");
     }
 
     private static String formatFieldError(FieldError error) {

@@ -329,3 +329,81 @@ input, select { font-family: var(--body); }
 .sev-text.sev-warning { color: var(--warning); }
 .sev-text.sev-info { color: var(--cyan); }
 .fault-panel { margin-top: 1.1rem; border-top: 1px dashed var(--border-bright); }
+
+/* ============================================================================
+   Responsive / mobile layout
+   Additive only — these rules override the desktop rules above at narrower
+   widths. No markup, logic, or behaviour changes: layout, spacing, sizing,
+   wrapping, scrolling and mobile-nav direction only.
+   ========================================================================== */
+
+/* ----- Tablets & small laptops: drop 4-up grids to 2-up ----- */
+@media (max-width: 1024px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .stat-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ----- Phones & small tablets ----- */
+@media (max-width: 640px) {
+  html { font-size: 13px; }
+
+  /* Header: let the brand and user controls wrap instead of overflowing. */
+  .app-header { flex-wrap: wrap; gap: 0.4rem 0.8rem; padding: 0.5rem 0.8rem; }
+  .brand { font-size: 0.82rem; }
+  .header-right { gap: 0.6rem; flex-wrap: wrap; }
+  .role-badge { font-size: 0.66rem; }
+
+  /* Nav: turn the fixed left sidebar into a horizontal scrolling strip on top.
+     Pure layout change — every link and its permission filter are unchanged. */
+  .app-body { grid-template-columns: 1fr; }
+  .app-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 0.3rem;
+    padding: 0.5rem 0.6rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav-link { white-space: nowrap; border-left: none; border-bottom: 2px solid transparent; }
+  .nav-link.active { border-left-color: transparent; border-bottom-color: var(--cyan); }
+
+  .app-content { padding: 0.8rem; }
+
+  /* Page header: allow the title and status badge to wrap. */
+  .page-header { flex-wrap: wrap; gap: 0.4rem; }
+
+  /* Two KPI / stat cards per row stay legible on narrow screens. */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+  .stat-row { grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+  .kpi-value { font-size: 1.6rem; }
+
+  /* Wide tables stay readable by scrolling inside their own card, keeping every
+     column intact (no markup change). min-width is scoped to :has so that on a
+     rare browser without :has support nothing can force the whole page sideways. */
+  .card:has(table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .card:has(table) .data-table,
+  .card:has(table) .readings-table { min-width: 520px; }
+  /* Tighter cells, and keep IDs / status / numbers on one line so rows stay
+     short — only the long explanation/message text is allowed to wrap. */
+  .data-table th, .data-table td,
+  .readings-table th, .readings-table td { padding: 0.32rem 0.45rem; white-space: nowrap; }
+  .explanation { white-space: normal; }
+
+  /* Stack filter/search forms so inputs get the full width. */
+  .filter-row { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+  .filter-row label { width: 100%; }
+  .filter-row input, .filter-row select { width: 100%; }
+  .num-input, .unit-input { width: 100%; }
+  .filter-row button { width: 100%; }
+
+  /* Simulation summary + action buttons wrap cleanly. */
+  .sim-summary { flex-wrap: wrap; gap: 1rem 1.6rem; }
+  .button-row button { flex: 1 1 auto; }
+
+  /* Keep the info tooltip bubble on-screen. */
+  .info-tip-bubble { width: min(280px, 78vw); }
+
+  /* Login card never wider than the viewport. */
+  .login-card { width: 100%; max-width: 360px; }
+}
